@@ -3,6 +3,7 @@
 .dev.vars
 .next
 .open-next
+.wrangler
 node_modules
 coverage
 *.tsbuildinfo

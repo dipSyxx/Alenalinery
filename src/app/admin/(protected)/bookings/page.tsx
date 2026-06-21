@@ -1,49 +1,55 @@
-import { BookingStatusBadge } from "@/components/booking-status-badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getAdminBookings } from "@/lib/data/supabase";
-import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
+import { addDays } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
-export default async function AdminBookingsPage() {
-  const bookings = await getAdminBookings({ limit: 100 });
+import { AdminBookingsWorkspace, type AdminBookingView } from "@/components/admin-bookings-workspace";
+import { getAdminBookings } from "@/lib/data/supabase";
+import { BUSINESS_TIME_ZONE, getZonedDateTime } from "@/lib/timezone";
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export default async function AdminBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
+  const { date: rawDate } = await searchParams;
+  const today = formatInTimeZone(new Date(), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
+  const selectedDate = rawDate && DATE_PATTERN.test(rawDate) ? rawDate : today;
+
+  const dayStart = getZonedDateTime(selectedDate, "00:00", BUSINESS_TIME_ZONE);
+  const nextDay = formatInTimeZone(
+    addDays(new Date(`${selectedDate}T12:00:00.000Z`), 1),
+    BUSINESS_TIME_ZONE,
+    "yyyy-MM-dd",
+  );
+  const dayEnd = getZonedDateTime(nextDay, "00:00", BUSINESS_TIME_ZONE);
+
+  const records = await getAdminBookings({ startAtGte: dayStart, startAtLt: dayEnd, ascending: true });
+
+  const bookings: AdminBookingView[] = records.map((b) => ({
+    id: b.id,
+    startAtISO: b.startAt.toISOString(),
+    endAtISO: b.endAt.toISOString(),
+    status: b.status,
+    source: b.source,
+    totalPriceUah: b.totalPriceUah,
+    clientComment: b.clientComment,
+    adminNotes: b.adminNotes,
+    cancelledAtISO: b.cancelledAt ? b.cancelledAt.toISOString() : null,
+    client: b.client,
+    service: b.service,
+  }));
 
   return (
     <>
       <p className="eyebrow">Записи</p>
-      <h1 className="display mt-2 text-5xl">Календар готовий до розвитку.</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Табличний список є надійною базою для календарного представлення та операційних фільтрів наступної ітерації.</p>
-      <Card className="mt-8">
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-(--card-spacing)">Дата</TableHead>
-                <TableHead>Клієнтка</TableHead>
-                <TableHead>Послуга</TableHead>
-                <TableHead className="pr-(--card-spacing) text-right">Статус</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bookings.map((booking) => (
-                <TableRow key={booking.id}>
-                  <TableCell className="pl-(--card-spacing) whitespace-nowrap">
-                    {booking.startAt.toLocaleString("uk-UA", { dateStyle: "medium", timeStyle: "short", timeZone: BUSINESS_TIME_ZONE })}
-                  </TableCell>
-                  <TableCell>
-                    <span className="block font-medium">{booking.client.name}</span>
-                    <span className="text-muted-foreground">{booking.client.phone}</span>
-                  </TableCell>
-                  <TableCell>{booking.service.name}</TableCell>
-                  <TableCell className="pr-(--card-spacing) text-right">
-                    <BookingStatusBadge status={booking.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {!bookings.length ? <p className="px-(--card-spacing) py-8 text-sm text-muted-foreground">Записів ще немає.</p> : null}
-        </CardContent>
-      </Card>
+      <div className="mt-4">
+        <AdminBookingsWorkspace
+          bookings={bookings}
+          selectedDate={selectedDate}
+          showManualCreate
+        />
+      </div>
     </>
   );
 }

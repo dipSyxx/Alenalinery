@@ -35,7 +35,7 @@ import {
   updateAdminBooking,
 } from "@/lib/data/supabase";
 import { createSupabaseBooking } from "@/lib/booking/create-supabase-booking";
-import { BookingConflictError, BookingValidationError } from "@/lib/booking/create-booking";
+import { BookingConflictError } from "@/lib/booking/create-booking";
 import { BookingStatusTransitionError } from "@/lib/admin/booking-status";
 
 const mockAdmin = { id: "admin-1", displayName: "Адмін", role: "ADMIN" as const };

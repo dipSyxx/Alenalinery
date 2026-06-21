@@ -194,7 +194,7 @@ async function assertAvailability({
   }
 }
 
-function parseBookingInput(input: unknown) {
+export function parseBookingInput(input: unknown) {
   try {
     return createBookingInputSchema.parse(input);
   } catch (error) {

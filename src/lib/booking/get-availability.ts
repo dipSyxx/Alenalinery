@@ -1,7 +1,12 @@
 import { isBefore } from "date-fns";
 
 import { getAvailableSlots } from "@/lib/booking/availability";
-import { getDb } from "@/lib/db";
+import {
+  getActiveService,
+  getBlockingBookingIntervals,
+  getScheduleBlockIntervals,
+  getWorkingHoursByWeekday,
+} from "@/lib/data/supabase";
 import { BUSINESS_TIME_ZONE, getWeekdayInTimeZone, getZonedDateTime } from "@/lib/timezone";
 
 export async function getAvailabilityForDate({
@@ -13,17 +18,14 @@ export async function getAvailabilityForDate({
   date: string;
   now?: Date;
 }) {
-  const db = getDb();
-  const service = await db.service.findFirst({ where: { id: serviceId, isActive: true } });
+  const service = await getActiveService(serviceId);
 
   if (!service) {
     return null;
   }
 
   const referenceAt = getZonedDateTime(date, "12:00");
-  const workingHours = await db.workingHours.findUnique({
-    where: { weekday: getWeekdayInTimeZone(referenceAt, BUSINESS_TIME_ZONE) },
-  });
+  const workingHours = await getWorkingHoursByWeekday(getWeekdayInTimeZone(referenceAt, BUSINESS_TIME_ZONE));
 
   if (!workingHours?.isWorkingDay) {
     return { service, slots: [] };
@@ -32,18 +34,8 @@ export async function getAvailabilityForDate({
   const workingDayStartAt = getZonedDateTime(date, workingHours.startTime);
   const workingDayEndAt = getZonedDateTime(date, workingHours.endTime);
   const [existingBookings, scheduleBlocks] = await Promise.all([
-    db.booking.findMany({
-      where: {
-        status: { in: ["PENDING_CONFIRMATION", "PENDING_PAYMENT", "CONFIRMED", "COMPLETED"] },
-        occupiedFrom: { lt: workingDayEndAt },
-        occupiedUntil: { gt: workingDayStartAt },
-      },
-      select: { startAt: true, occupiedFrom: true, occupiedUntil: true, status: true },
-    }),
-    db.scheduleBlock.findMany({
-      where: { startAt: { lt: workingDayEndAt }, endAt: { gt: workingDayStartAt } },
-      select: { startAt: true, endAt: true },
-    }),
+    getBlockingBookingIntervals({ occupiedFrom: workingDayStartAt, occupiedUntil: workingDayEndAt }),
+    getScheduleBlockIntervals({ occupiedFrom: workingDayStartAt, occupiedUntil: workingDayEndAt }),
   ]);
 
   const slots = getAvailableSlots({

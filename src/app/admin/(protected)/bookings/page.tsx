@@ -1,15 +1,11 @@
 import { BookingStatusBadge } from "@/components/booking-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getDb } from "@/lib/db";
+import { getAdminBookings } from "@/lib/data/supabase";
 import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
 
 export default async function AdminBookingsPage() {
-  const bookings = await getDb().booking.findMany({
-    take: 100,
-    orderBy: { startAt: "desc" },
-    include: { client: { select: { name: true, phone: true } }, service: { select: { name: true } } },
-  });
+  const bookings = await getAdminBookings({ limit: 100 });
 
   return (
     <>

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 
-import { getDb } from "@/lib/db";
+import { getAdminProfileById } from "@/lib/data/supabase";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export type AdminLoginState = { error?: string };
@@ -31,7 +31,7 @@ export async function signInAdmin(_: AdminLoginState, formData: FormData): Promi
       return { error: "Не вдалося увійти. Перевірте email і пароль." };
     }
 
-    const profile = await getDb().profile.findFirst({ where: { id: data.user.id, role: "ADMIN" } });
+    const profile = await getAdminProfileById(data.user.id);
 
     if (!profile) {
       await supabase.auth.signOut();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAdminProfileForApi } from "@/lib/auth/admin";
-import { getDb } from "@/lib/db";
+import { createScheduleBlock, getFutureScheduleBlocks, getWorkingHours, updateWorkingHours } from "@/lib/data/supabase";
 import { scheduleBlockCreateSchema, workingHoursUpdateSchema } from "@/lib/validation/admin";
 
 export async function GET() {
@@ -10,8 +10,8 @@ export async function GET() {
   }
 
   const [workingHours, scheduleBlocks] = await Promise.all([
-    getDb().workingHours.findMany({ orderBy: { weekday: "asc" } }),
-    getDb().scheduleBlock.findMany({ where: { endAt: { gte: new Date() } }, orderBy: { startAt: "asc" } }),
+    getWorkingHours(),
+    getFutureScheduleBlocks(),
   ]);
 
   return NextResponse.json({ workingHours, scheduleBlocks });
@@ -29,10 +29,7 @@ export async function PATCH(request: Request) {
   }
 
   const { id, startTime, endTime, isWorkingDay } = parsed.data;
-  const workingHours = await getDb().workingHours.update({
-    where: { id },
-    data: { startTime, endTime, isWorkingDay },
-  });
+  const workingHours = await updateWorkingHours(id, { startTime, endTime, isWorkingDay });
 
   return NextResponse.json({ workingHours });
 }
@@ -48,11 +45,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Перевірте блокування часу." }, { status: 400 });
   }
 
-  const scheduleBlockData = {
-    startAt: parsed.data.startAt,
-    endAt: parsed.data.endAt,
-    reason: parsed.data.reason,
-  };
-  const scheduleBlock = await getDb().scheduleBlock.create({ data: scheduleBlockData });
+  const scheduleBlock = await createScheduleBlock(parsed.data);
   return NextResponse.json({ scheduleBlock }, { status: 201 });
 }

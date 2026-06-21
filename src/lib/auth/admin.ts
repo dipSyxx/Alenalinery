@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getDb } from "@/lib/db";
+import { getAdminProfileById } from "@/lib/data/supabase";
 import { hasSupabasePublicConfig } from "@/lib/supabase/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -17,10 +17,7 @@ export async function getAdminProfile() {
     return null;
   }
 
-  return getDb().profile.findFirst({
-    where: { id: userId, role: "ADMIN" },
-    select: { id: true, displayName: true, role: true },
-  });
+  return getAdminProfileById(userId);
 }
 
 export async function requireAdmin() {

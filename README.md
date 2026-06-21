@@ -1,133 +1,102 @@
 # Alenalinery
 
-Initial production foundation for a beauty studio in Uman, Ukraine. The public product is Ukrainian-first; technical code, routes, database names, and operational documentation are English.
-
-## What is included
-
-- Premium, responsive public pages: `/`, `/services`, `/booking`, and `/booking/success`.
-- Guest booking with service-driven, server-calculated time slots in `Europe/Kyiv`.
-- Prisma/PostgreSQL schema, migration, and representative seed data.
-- Supabase Auth login plus server-side ADMIN profile authorization for `/admin/*`.
-- Admin foundation for today's bookings, bookings list, service catalog, working hours, and schedule blocks.
-- Extension seams for payments, notifications, portfolio, products, orders, and client hair history.
-
-The public site deliberately uses labelled image areas rather than invented stock photography. Replace them with the studio's actual media when it is ready.
+Production foundation for a beauty studio in Uman, Ukraine. The public product is Ukrainian-first; routes, database names, and operating documentation are English.
 
 ## Architecture
 
 ```text
-Public browser
-  ├─ GET /api/services ──────────────┐
-  ├─ GET /api/availability ──────────┼─ Next.js server ── Prisma ── Supabase PostgreSQL
-  └─ POST /api/bookings ─────────────┘        │
-                                               └─ Supabase Auth cookies (admin only)
+Browser
+  ├─ Supabase Auth ── publishable key
+  └─ Next.js on Cloudflare Workers
+       ├─ server Supabase client ── service_role secret ── PostgREST / RPC
+       └─ Supabase PostgreSQL
+            ├─ SQL migrations in supabase/migrations/
+            └─ seed data in supabase/seed.sql
 ```
 
-- `src/lib/booking/availability.ts` is a pure, unit-tested scheduling engine.
-- `src/lib/booking/create-booking.ts` validates data, resolves all service values on the server, checks availability twice, and reuses clients by normalized phone number.
-- `src/lib/booking/prisma-repository.ts` maps that domain contract to Prisma transactions.
-- `src/lib/auth/admin.ts` validates Supabase Auth claims and the ADMIN `Profile` on every protected server page/API route. `src/proxy.ts` only refreshes sessions and provides a first redirect layer; it is not used as the sole authorization control.
-- Prisma is used only in the Next.js server/API layer. There is no Worker implementation in this MVP.
+The Worker is the only application component that performs data mutations. Browser code calls the existing Next.js routes; those routes use HTTPS through `@supabase/supabase-js`, not PostgreSQL TCP, `pg`, or Prisma.
 
-## Booking model and availability rules
+## Booking integrity
 
-The business timezone is `Europe/Kyiv`; all persisted schedule fields use `timestamptz`.
+`public.create_booking` is a PostgreSQL RPC function called only with the Worker service-role client. In one database transaction it:
 
-- Slots are generated in 30-minute increments.
-- A selectable slot must fit within working hours after applying service duration and both buffers.
-- `occupiedFrom` includes a before-buffer and `occupiedUntil` includes the service duration plus after-buffer.
-- Existing `PENDING_CONFIRMATION`, `PENDING_PAYMENT`, `CONFIRMED`, and `COMPLETED` bookings block availability. `CANCELLED`, `EXPIRED`, and `NO_SHOW` do not.
-- Schedule blocks overlap against the full occupied interval.
-- Booking submission repeats the availability check inside a Prisma transaction.
-- The migration also adds PostgreSQL `btree_gist` plus a partial exclusion constraint over the active booking range. This is the final concurrency safeguard if two booking requests pass the application check simultaneously.
+- loads the active service and derives duration, buffers, price, and deposit;
+- converts the requested Kyiv date/time to `timestamptz`, validates working hours and past times;
+- rejects overlaps with schedule blocks and active bookings;
+- finds or creates the client by normalized phone; and
+- inserts the booking under the partial exclusion constraint on its occupied range.
 
-The client never sends an end time, price, deposit amount, or booking status. The API resolves those values from the active `Service` record.
+The pre-insert checks return a useful conflict response. The exclusion constraint is the final guard against two concurrent requests booking the same interval.
 
-## Local setup
+All public tables have RLS enabled. `anon` and `authenticated` can only read active services; the booking RPC has no public execute permission. `SUPABASE_SERVICE_ROLE_KEY` is read only by `src/lib/supabase/service.ts`, which is explicitly server-only.
 
-Prerequisites: Node.js 20.9+ (Node 24 is supported), a Supabase project, and database connection strings with enough privileges to apply the migration.
+## Environment and Cloudflare secrets
 
-1. Install dependencies:
+Copy [`.env.example`](.env.example) to `.env.local` for Next.js development, or [`.dev.vars.example`](.dev.vars.example) to `.dev.vars` for Wrangler. Set the service-role value locally; do not commit either ignored file.
 
-   ```bash
-   npm install
-   ```
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Worker variable and local env | Supabase project URL. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Worker variable and local env | Public browser/Auth key. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Worker secret and local env | Privileged server-only PostgREST/RPC access. |
 
-2. Copy `.env.example` to `.env` and replace every placeholder. Do not commit `.env`.
+The two public variables are declared in [`wrangler.jsonc`](wrangler.jsonc). Before deployment, store the privileged key outside source control:
 
-3. Generate Prisma Client, deploy the checked-in migration, and seed the operational defaults:
+```bash
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+```
 
-   ```bash
-   npm run prisma:generate
-   npx prisma migrate deploy
-   npm run db:seed
-   ```
+## Database workflow
 
-4. Run the app:
+The Supabase CLI project is configured in [`supabase/config.toml`](supabase/config.toml). Fresh local databases apply migrations and [`supabase/seed.sql`](supabase/seed.sql) together:
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm install
+npx supabase start
+npm run db:reset
+```
 
-5. Open `http://localhost:3000`.
+For a new hosted project, authenticate, link it, then push migrations and the representative operational seed data:
 
-### Environment variables
+```bash
+npx supabase login
+npx supabase link --project-ref koceyimuvlntuaptfijk
+npx supabase db push --linked --include-seed
+```
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Recommended current browser/server Auth key. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy alternative if the project has not moved to publishable keys. One public key is required. |
-| `DATABASE_URL` | Pooled PostgreSQL connection for Prisma application traffic. |
-| `DIRECT_URL` | Direct PostgreSQL connection used by Prisma migrations. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Not used by this MVP. Keep server-only if a future server administration task genuinely needs it. |
+For an existing database that already received the former Prisma migrations, first back it up and confirm its schema matches the checked-in baseline. Then record only the equivalent baseline as applied, so `db push` applies the new trigger/RPC migration without recreating tables:
 
-`SUPABASE_SERVICE_ROLE_KEY` must never use the `NEXT_PUBLIC_` prefix or appear in a client component.
+```bash
+npx supabase link --project-ref koceyimuvlntuaptfijk
+npx supabase migration repair --linked --status applied 20260620233000
+npx supabase db push --linked --include-seed
+```
 
-## Supabase setup
+Do not run `db:reset --linked`; it destroys remote data.
 
-1. Create a Supabase project and enable email/password sign-in under **Auth**.
-2. Copy the URL and either the recommended publishable key or the legacy anon key into `.env`.
-3. Use the direct connection URI for `DIRECT_URL`; use the Supabase pooler URI for `DATABASE_URL` when appropriate for the selected pooler mode.
-4. Apply the migration before creating data. It creates the required enums, tables, indexes, RLS policies, `auth.users` foreign key for profiles, and the booking exclusion constraint.
-5. Run the seed command. It creates the requested categories, representative services, and Tuesday–Saturday `10:00–18:00` schedule. It never creates customer data.
-
-### RLS and access model
-
-Every `public` schema table has RLS enabled by the migration. `anon` and `authenticated` have read access only to active service categories and active services. They cannot read or write clients, bookings, operating hours, schedule blocks, or profiles through Supabase Data APIs.
-
-Public booking creation always goes through `POST /api/bookings` in Next.js, where Zod validation, price calculation, schedule logic, and transaction checks are enforced.
-
-### Create the first admin
-
-1. Create the owner account in Supabase Auth with email/password.
-2. Copy the Auth user's UUID from the Supabase dashboard.
-3. Insert the corresponding profile using the SQL editor or a privileged SQL connection:
-
-   ```sql
-   insert into public."Profile" ("id", "displayName")
-   values ('<supabase-auth-user-uuid>', 'Олена');
-   ```
-
-4. Sign in at `/admin/login`.
-
-The profile defaults to `ADMIN`. The data model preserves the `role` enum so additional roles can be introduced later.
-
-## Commands
+## Application checks
 
 ```bash
 npm run lint
 npm run typecheck
 npm test
-npm run prisma:validate
-npm run prisma:generate
-npm run db:seed
-npm run build
+npm run cf:build
 ```
 
-## Booking status lifecycle
+The application intentionally does not start development or preview servers as part of these checks.
 
-New website requests begin as `PENDING_CONFIRMATION`.
+## Create the first admin
+
+Create the owner account in Supabase Auth, then insert its Auth UUID into the profile table from the Supabase SQL editor:
+
+```sql
+insert into public."Profile" ("id", "displayName")
+values ('<supabase-auth-user-uuid>', 'Олена');
+```
+
+The profile defaults to the `ADMIN` role. Sign in at `/admin/login`.
+
+## Booking status lifecycle
 
 ```text
 PENDING_CONFIRMATION → CONFIRMED → COMPLETED
@@ -136,25 +105,4 @@ PENDING_CONFIRMATION → CONFIRMED → COMPLETED
          └──→ PENDING_PAYMENT → EXPIRED / CONFIRMED
 ```
 
-Payments are not implemented yet. `PENDING_PAYMENT`, `PaymentStatus`, and `depositAmountUah` exist so an invoice workflow can be introduced without reshaping booking data.
-
-## Future Monobank / Cloudflare design
-
-No payment processing or Worker deployment exists in this iteration.
-
-1. Monobank will send payment webhooks to a Cloudflare Worker.
-2. The Worker will verify the Monobank webhook signature.
-3. The Worker will call a protected Next.js API endpoint.
-4. That Next.js endpoint will use Prisma to update payment and booking status.
-5. The endpoint will be idempotent, keyed by a future unique invoice ID.
-
-Prisma remains in Next.js; it must not run inside the Cloudflare Worker.
-
-## Next steps
-
-- Monobank invoices, deposits, and idempotent webhook processing.
-- Telegram/email notifications and booking reminders.
-- Studio portfolio backed by Supabase Storage.
-- Product catalog, orders, and checkout.
-- Client hair history and richer CRM notes.
-- Full admin CRUD for services and calendar presentation.
+Payments, notifications, portfolio media, products, and richer CRM workflows remain future additions. New server-side extensions must continue to use the service-role client or narrowly permissioned Supabase RPC functions; never add database TCP clients to the Worker.

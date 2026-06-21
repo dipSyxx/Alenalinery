@@ -1,1 +1,0 @@
-ALTER EXTENSION "btree_gist" SET SCHEMA extensions;

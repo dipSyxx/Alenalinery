@@ -4,7 +4,7 @@ import { CalendarDays, Clock3, UsersRound } from "lucide-react";
 
 import { BookingStatusBadge } from "@/components/booking-status-badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDb } from "@/lib/db";
+import { getAdminBookings, getClientCount } from "@/lib/data/supabase";
 import { BUSINESS_TIME_ZONE, getZonedDateTime } from "@/lib/timezone";
 
 export default async function AdminDashboardPage() {
@@ -12,15 +12,11 @@ export default async function AdminDashboardPage() {
   const dayStart = getZonedDateTime(today, "00:00", BUSINESS_TIME_ZONE);
   const tomorrow = formatInTimeZone(addDays(new Date(`${today}T12:00:00.000Z`), 1), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
   const dayEnd = getZonedDateTime(tomorrow, "00:00", BUSINESS_TIME_ZONE);
-  const db = getDb();
   const [todayBookings, clientCount] = await Promise.all([
-    db.booking.findMany({
-      where: { startAt: { gte: dayStart, lt: dayEnd } },
-      orderBy: { startAt: "asc" },
-      include: { client: { select: { name: true, phone: true } }, service: { select: { name: true } } },
-    }),
-    db.client.count(),
+    getAdminBookings({ startAtGte: dayStart, startAtLt: dayEnd }),
+    getClientCount(),
   ]);
+  todayBookings.reverse();
   const activeCount = todayBookings.filter((booking) => !["CANCELLED", "EXPIRED", "NO_SHOW"].includes(booking.status)).length;
 
   return (

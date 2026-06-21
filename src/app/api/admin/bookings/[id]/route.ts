@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAdminProfileForApi } from "@/lib/auth/admin";
-import { getDb } from "@/lib/db";
+import { updateAdminBooking } from "@/lib/data/supabase";
 import { bookingUpdateSchema } from "@/lib/validation/admin";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,14 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const booking = await getDb().booking.update({
-    where: { id },
-    data: {
-      status: parsed.data.status,
-      adminNotes: parsed.data.adminNotes,
-      cancelledAt: parsed.data.status === "CANCELLED" ? new Date() : undefined,
-    },
-  });
+  const booking = await updateAdminBooking(id, parsed.data);
 
   return NextResponse.json({ booking });
 }

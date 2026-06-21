@@ -1,10 +1,10 @@
 import { ScheduleEditor } from "@/components/schedule-editor";
-import { getDb } from "@/lib/db";
+import { getFutureScheduleBlocks, getWorkingHours } from "@/lib/data/supabase";
 
 export default async function AdminSchedulePage() {
   const [workingHours, scheduleBlocks] = await Promise.all([
-    getDb().workingHours.findMany({ orderBy: { weekday: "asc" } }),
-    getDb().scheduleBlock.findMany({ where: { endAt: { gte: new Date() } }, orderBy: { startAt: "asc" } }),
+    getWorkingHours(),
+    getFutureScheduleBlocks(),
   ]);
 
   return (

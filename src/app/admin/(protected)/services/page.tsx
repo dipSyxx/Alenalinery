@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getDb } from "@/lib/db";
+import { getAdminServiceCategories } from "@/lib/data/supabase";
 
 export default async function AdminServicesPage() {
-  const categories = await getDb().serviceCategory.findMany({ orderBy: { sortOrder: "asc" }, include: { services: { orderBy: { sortOrder: "asc" } } } });
+  const categories = await getAdminServiceCategories();
 
   return (
     <>

@@ -95,7 +95,7 @@ Both functions: `revoke all from public; grant execute to service_role`. No publ
 After `db:reset`, verify the new RPCs against the local stack:
 
 ```bash
-npx supabase db execute --local --file tests/supabase-admin-booking-rpc.sql
+npx supabase db query --local --file tests/supabase-admin-booking-rpc.sql
 ```
 
 The script finds an active service, creates a booking via `create_admin_booking`, asserts `source = 'ADMIN'`, reschedules it, asserts the change, verifies the idempotent-reschedule guard, then cleans up.
@@ -116,7 +116,7 @@ The application intentionally does not start development or preview servers as p
 ```bash
 npm run lint && npm run typecheck && npm test && npm run cf:build
 npx supabase db reset --local
-npx supabase db execute --local --file tests/supabase-admin-booking-rpc.sql
+npx supabase db query --local --file tests/supabase-admin-booking-rpc.sql
 ```
 
 All six commands must exit 0 before applying migrations to the hosted project.

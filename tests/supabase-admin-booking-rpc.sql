@@ -15,11 +15,13 @@ declare
   v_test_date_1  date;
   v_test_date_2  date;
 begin
-  -- 1. Find an active service to book.
+  -- 1. Find the shortest active service to avoid working-hours conflicts
+  --    regardless of which slot we pick in the test.
   select "id"
   into v_service_id
   from public."Service"
   where "isActive" = true
+  order by "durationMinutes" asc, "bufferAfterMinutes" asc
   limit 1;
 
   if v_service_id is null then

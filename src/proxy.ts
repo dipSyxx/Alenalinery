@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 
 import { updateSupabaseSession } from "@/lib/supabase/proxy";
 
+export const runtime = "edge";
+
 export function proxy(request: NextRequest) {
   return updateSupabaseSession(request);
 }

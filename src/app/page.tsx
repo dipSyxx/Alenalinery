@@ -21,7 +21,7 @@ export default function HomePage() {
             <h1 className="display mt-5 max-w-2xl text-5xl leading-[.9] sm:text-6xl lg:text-7xl">
               Волосся, у якому впізнаєте себе.
             </h1>
-            <p className="mt-7 max-w-lg text-base leading-7 text-muted sm:text-lg">
+            <p className="mt-7 max-w-lg text-base leading-7 text-muted-foreground sm:text-lg">
               Персональна робота колористки й стилістки: складні фарбування, стрижки, відновлення та чесна
               консультація без зайвого.
             </p>
@@ -54,7 +54,7 @@ export default function HomePage() {
                   <span className="pt-1 text-sm font-bold text-accent">0{index + 1}</span>
                   <div>
                     <h3 className="text-xl font-bold">{title}</h3>
-                    <p className="mt-1 max-w-xl text-sm leading-6 text-muted">{description}</p>
+                    <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{description}</p>
                   </div>
                 </article>
               ))}
@@ -69,7 +69,7 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">Про студію</p>
             <h2 className="display mt-3 text-4xl sm:text-5xl">Спокійний простір для важливих змін.</h2>
-            <p className="mt-6 max-w-xl leading-7 text-muted">
+            <p className="mt-6 max-w-xl leading-7 text-muted-foreground">
               Тут не поспішають із рішенням: спершу говоримо про ваш запит, звички й стан волосся. Потім обираємо
               техніку, яка буде гарною не лише в день процедури.
             </p>
@@ -97,7 +97,7 @@ export default function HomePage() {
               <p className="eyebrow">Портфоліо</p>
               <h2 className="display mt-3 text-4xl sm:text-5xl">Місце для реальних трансформацій.</h2>
             </div>
-            <p className="max-w-sm text-sm leading-6 text-muted">Фото робіт будуть додані після підготовки галереї студії.</p>
+            <p className="max-w-sm text-sm leading-6 text-muted-foreground">Фото робіт будуть додані після підготовки галереї студії.</p>
           </div>
           <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
             {["Колір", "Стрижка", "Догляд", "Результат"].map((label, index) => (
@@ -113,10 +113,10 @@ export default function HomePage() {
             <div>
               <p className="eyebrow">Контакти</p>
               <h2 className="display mt-3 text-4xl sm:text-5xl">До зустрічі в Умані.</h2>
-              <p className="mt-5 flex items-center gap-2 text-muted">
+              <p className="mt-5 flex items-center gap-2 text-muted-foreground">
                 <MapPin size={18} /> Умань, Україна
               </p>
-              <p className="mt-2 text-sm leading-6 text-muted">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Актуальні контакти та посилання на соціальні мережі будуть додані перед запуском.
               </p>
             </div>

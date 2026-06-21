@@ -1,10 +1,24 @@
 "use client";
 
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
-import { ArrowLeft, ArrowRight, CalendarDays, Check, LoaderCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CalendarIcon, Check, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 type Service = {
   id: string;
@@ -163,7 +177,7 @@ export function BookingFlow() {
           const current = index + 1 === step;
           const complete = index + 1 < step;
           return (
-            <li key={label} className={`text-xs font-bold ${current ? "text-accent" : complete ? "text-ink" : "text-muted"}`}>
+            <li key={label} className={`text-xs font-bold ${current ? "text-accent" : complete ? "text-ink" : "text-muted-foreground"}`}>
               <span className="mr-1 inline-flex h-5 w-5 items-center justify-center border border-current text-[.65rem]">
                 {complete ? <Check size={12} /> : index + 1}
               </span>
@@ -226,8 +240,28 @@ function ServiceStep({
   status: "loading" | "ready" | "error";
   onSelect: (id: string) => void;
 }) {
-  if (status === "loading") return <p className="py-12 text-muted">Завантажуємо послуги…</p>;
-  if (status === "error") return <p role="alert" className="border-l-2 border-accent py-2 pl-4 text-muted">Не вдалося завантажити послуги.</p>;
+  if (status === "loading") {
+    return (
+      <div>
+        <p className="eyebrow">Крок 1</p>
+        <h2 className="display mt-2 text-4xl">Оберіть послугу</h2>
+        <div className="mt-7 space-y-3">
+          {[0, 1, 2, 3].map((row) => (
+            <Skeleton key={row} className="h-20 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Не вдалося завантажити послуги</AlertTitle>
+        <AlertDescription>Спробуйте оновити сторінку трохи пізніше.</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div>
@@ -244,13 +278,18 @@ function ServiceStep({
                   <button
                     key={item.id}
                     type="button"
-                    className={`grid gap-2 border p-4 text-left transition sm:grid-cols-[1fr_auto] sm:items-center ${selected ? "border-accent bg-[#f4ece8]" : "border-line bg-surface hover:border-[#bea89e]"}`}
+                    className={`grid gap-2 border p-4 text-left transition sm:grid-cols-[1fr_auto] sm:items-center ${selected ? "border-accent bg-accent/10" : "border-line bg-surface hover:border-accent/60"}`}
                     aria-pressed={selected}
                     onClick={() => onSelect(item.id)}
                   >
                     <span>
-                      <span className="block font-bold">{item.name}</span>
-                      <span className="mt-1 block text-sm leading-6 text-muted">{item.description}</span>
+                      <span className="flex flex-wrap items-center gap-2 font-bold">
+                        {item.name}
+                        {item.requiresConsultation ? (
+                          <Badge variant="outline" className="border-accent/40 text-accent">Консультація</Badge>
+                        ) : null}
+                      </span>
+                      <span className="mt-1 block text-sm leading-6 text-muted-foreground">{item.description}</span>
                     </span>
                     <span className="text-sm font-bold">від {item.basePriceUah.toLocaleString("uk-UA")} ₴ · {item.durationMinutes} хв</span>
                   </button>
@@ -287,25 +326,61 @@ function TimeStep({
   onBack: () => void;
   onContinue: () => void;
 }) {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const minimumDateObject = useMemo(() => new Date(`${minimumDate}T00:00:00`), [minimumDate]);
+  const selectedDateObject = date ? new Date(`${date}T00:00:00`) : undefined;
+
   return (
     <div>
       <p className="eyebrow">Крок 2</p>
       <h2 className="display mt-2 text-4xl">Дата та час</h2>
-      <p className="mt-3 text-sm text-muted">{service.name} · від {service.basePriceUah.toLocaleString("uk-UA")} ₴</p>
-      <div className="mt-7 max-w-xs">
-        <label className="field-label" htmlFor="booking-date">Оберіть дату</label>
-        <input
-          id="booking-date"
-          className="field"
-          type="date"
-          min={minimumDate}
-          value={date}
-          onChange={(event) => onDateChange(event.target.value)}
-        />
+      <p className="mt-3 text-sm text-muted-foreground">{service.name} · від {service.basePriceUah.toLocaleString("uk-UA")} ₴</p>
+      <div className="mt-7 grid max-w-xs gap-1.5">
+        <Label htmlFor="booking-date">Оберіть дату</Label>
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              id="booking-date"
+              type="button"
+              variant="outline"
+              className="h-11 justify-between font-normal"
+            >
+              {selectedDateObject ? format(selectedDateObject, "d MMMM yyyy", { locale: uk }) : "Оберіть дату"}
+              <CalendarIcon className="size-4 opacity-70" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              locale={uk}
+              selected={selectedDateObject}
+              onSelect={(value) => {
+                onDateChange(value ? format(value, "yyyy-MM-dd") : "");
+                setCalendarOpen(false);
+              }}
+              disabled={{ before: minimumDateObject }}
+              defaultMonth={selectedDateObject}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
-      {status === "loading" ? <p className="mt-6 inline-flex items-center gap-2 text-sm text-muted"><LoaderCircle className="animate-spin" size={16} /> Шукаємо вільний час…</p> : null}
-      {status === "error" ? <p role="alert" className="mt-6 border-l-2 border-accent py-2 pl-4 text-sm text-muted">Не вдалося завантажити вільний час. Спробуйте ще раз.</p> : null}
-      {status === "ready" && slots.length === 0 ? <p className="mt-6 text-sm text-muted">На цю дату немає вільних слотів. Оберіть інший день.</p> : null}
+      {status === "loading" ? (
+        <div className="mt-7">
+          <p className="mb-3 text-sm font-bold">Вільний час</p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((cell) => (
+              <Skeleton key={cell} className="h-11 w-full" />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {status === "error" ? (
+        <Alert variant="destructive" className="mt-6">
+          <AlertTitle>Не вдалося завантажити вільний час</AlertTitle>
+          <AlertDescription>Спробуйте обрати дату ще раз.</AlertDescription>
+        </Alert>
+      ) : null}
+      {status === "ready" && slots.length === 0 ? <p className="mt-6 text-sm text-muted-foreground">На цю дату немає вільних слотів. Оберіть інший день.</p> : null}
       {status === "ready" && slots.length > 0 ? (
         <fieldset className="mt-7">
           <legend className="mb-3 text-sm font-bold">Вільний час</legend>
@@ -313,23 +388,24 @@ function TimeStep({
             {slots.map((slot) => {
               const selected = slot === selectedSlot;
               return (
-                <button
+                <Button
                   key={slot}
                   type="button"
-                  className={`min-h-11 border text-sm font-bold ${selected ? "border-accent bg-accent text-white" : "border-line bg-surface hover:border-accent"}`}
+                  variant={selected ? "default" : "outline"}
+                  className="h-11 font-bold"
                   aria-pressed={selected}
                   onClick={() => onSelectSlot(slot)}
                 >
                   {formatInTimeZone(new Date(slot), KYIV_TIME_ZONE, "HH:mm")}
-                </button>
+                </Button>
               );
             })}
           </div>
         </fieldset>
       ) : null}
       <div className="mt-9 flex flex-wrap justify-between gap-3">
-        <button type="button" className="button-secondary" onClick={onBack}><ArrowLeft size={16} /> Назад</button>
-        <button type="button" className="button-primary" disabled={!selectedSlot} onClick={onContinue}>Продовжити <ArrowRight size={16} /></button>
+        <Button type="button" variant="outline" className="h-11 px-5" onClick={onBack}><ArrowLeft className="size-4" /> Назад</Button>
+        <Button type="button" className="h-11 px-5" disabled={!selectedSlot} onClick={onContinue}>Продовжити <ArrowRight className="size-4" /></Button>
       </div>
     </div>
   );
@@ -350,36 +426,42 @@ function DetailsStep({
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <p className="eyebrow">Крок 3</p>
       <h2 className="display mt-2 text-4xl">Ваші контакти</h2>
-      <p className="mt-3 text-sm text-muted">Номер телефону потрібен, щоб студія підтвердила запис.</p>
+      <p className="mt-3 text-sm text-muted-foreground">Номер телефону потрібен, щоб студія підтвердила запис.</p>
       <div className="mt-7 grid gap-5 sm:grid-cols-2">
-        <Field label="Ім’я" error={errors.name?.message}>
-          <input className="field" autoComplete="name" {...register("name", { required: "Вкажіть ім’я.", minLength: { value: 2, message: "Вкажіть повне ім’я." } })} />
+        <Field id="booking-name" label="Ім’я" error={errors.name?.message}>
+          <Input id="booking-name" className="h-11" autoComplete="name" aria-invalid={!!errors.name} aria-describedby={errors.name ? "booking-name-error" : undefined} {...register("name", { required: "Вкажіть ім’я.", minLength: { value: 2, message: "Вкажіть повне ім’я." } })} />
         </Field>
-        <Field label="Телефон" error={errors.phone?.message}>
-          <input className="field" inputMode="tel" autoComplete="tel" placeholder="050 123 45 67" {...register("phone", { required: "Вкажіть номер телефону." })} />
+        <Field id="booking-phone" label="Телефон" error={errors.phone?.message}>
+          <Input id="booking-phone" className="h-11" inputMode="tel" autoComplete="tel" placeholder="050 123 45 67" aria-invalid={!!errors.phone} aria-describedby={errors.phone ? "booking-phone-error" : undefined} {...register("phone", { required: "Вкажіть номер телефону." })} />
         </Field>
-        <Field label="Instagram (необов’язково)" error={errors.instagram?.message}>
-          <input className="field" autoComplete="off" {...register("instagram")} />
+        <Field id="booking-instagram" label="Instagram (необов’язково)" error={errors.instagram?.message}>
+          <Input id="booking-instagram" className="h-11" autoComplete="off" {...register("instagram")} />
         </Field>
-        <Field label="Telegram (необов’язково)" error={errors.telegram?.message}>
-          <input className="field" autoComplete="off" {...register("telegram")} />
+        <Field id="booking-telegram" label="Telegram (необов’язково)" error={errors.telegram?.message}>
+          <Input id="booking-telegram" className="h-11" autoComplete="off" {...register("telegram")} />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Коментар до запису (необов’язково)" error={errors.clientComment?.message}>
-            <textarea className="field min-h-28 resize-y" {...register("clientComment", { maxLength: { value: 1000, message: "Коментар надто довгий." } })} />
+          <Field id="booking-comment" label="Коментар до запису (необов’язково)" error={errors.clientComment?.message}>
+            <Textarea id="booking-comment" className="min-h-28" aria-invalid={!!errors.clientComment} aria-describedby={errors.clientComment ? "booking-comment-error" : undefined} {...register("clientComment", { maxLength: { value: 1000, message: "Коментар надто довгий." } })} />
           </Field>
         </div>
       </div>
       <div className="mt-9 flex flex-wrap justify-between gap-3">
-        <button type="button" className="button-secondary" onClick={onBack}><ArrowLeft size={16} /> Назад</button>
-        <button type="submit" className="button-primary">Переглянути запис <ArrowRight size={16} /></button>
+        <Button type="button" variant="outline" className="h-11 px-5" onClick={onBack}><ArrowLeft className="size-4" /> Назад</Button>
+        <Button type="submit" className="h-11 px-5">Переглянути запис <ArrowRight className="size-4" /></Button>
       </div>
     </form>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return <label className="block"><span className="field-label">{label}</span>{children}{error ? <span role="alert" className="mt-1 block text-xs text-accent-strong">{error}</span> : null}</label>;
+function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error ? <p id={`${id}-error`} role="alert" className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
 }
 
 function ReviewStep({
@@ -404,20 +486,39 @@ function ReviewStep({
     <div>
       <p className="eyebrow">Крок 4</p>
       <h2 className="display mt-2 text-4xl">Перевірте запис</h2>
-      <div className="mt-7 divide-y divide-line border-y border-line">
-        <div className="flex justify-between gap-4 py-4"><span className="text-muted">Послуга</span><strong className="text-right">{service.name}</strong></div>
-        <div className="flex justify-between gap-4 py-4"><span className="text-muted">Дата і час</span><strong className="text-right capitalize">{appointmentTime}</strong></div>
-        <div className="flex justify-between gap-4 py-4"><span className="text-muted">Вартість</span><strong>від {service.basePriceUah.toLocaleString("uk-UA")} ₴</strong></div>
-        <div className="flex justify-between gap-4 py-4"><span className="text-muted">Клієнтка</span><strong className="text-right">{details.name}<br />{details.phone}</strong></div>
-      </div>
-      {error ? <p role="alert" className="mt-5 border-l-2 border-accent py-2 pl-4 text-sm text-accent-strong">{error}</p> : null}
-      <p className="mt-5 text-sm leading-6 text-muted">Після створення запису студія зв’яжеться з вами для підтвердження.</p>
+      <Card className="mt-7">
+        <CardContent className="grid gap-0">
+          <SummaryRow label="Послуга" value={service.name} />
+          <Separator />
+          <SummaryRow label="Дата і час" value={<span className="capitalize">{appointmentTime}</span>} />
+          <Separator />
+          <SummaryRow label="Вартість" value={`від ${service.basePriceUah.toLocaleString("uk-UA")} ₴`} />
+          <Separator />
+          <SummaryRow label="Клієнтка" value={<span>{details.name}<br />{details.phone}</span>} />
+        </CardContent>
+      </Card>
+      {error ? (
+        <Alert variant="destructive" className="mt-5">
+          <AlertTitle>Запис не створено</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <p className="mt-5 text-sm leading-6 text-muted-foreground">Після створення запису студія зв’яжеться з вами для підтвердження.</p>
       <div className="mt-9 flex flex-wrap justify-between gap-3">
-        <button type="button" className="button-secondary" disabled={isSubmitting} onClick={onBack}><ArrowLeft size={16} /> Назад</button>
-        <button type="button" className="button-primary" disabled={isSubmitting} onClick={onConfirm}>
-          {isSubmitting ? <><LoaderCircle className="animate-spin" size={16} /> Створюємо…</> : <><CalendarDays size={16} /> Підтвердити запис</>}
-        </button>
+        <Button type="button" variant="outline" className="h-11 px-5" disabled={isSubmitting} onClick={onBack}><ArrowLeft className="size-4" /> Назад</Button>
+        <Button type="button" className="h-11 px-5" disabled={isSubmitting} onClick={onConfirm}>
+          {isSubmitting ? <><LoaderCircle className="size-4 animate-spin" /> Створюємо…</> : <><CalendarDays className="size-4" /> Підтвердити запис</>}
+        </Button>
       </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 py-3">
+      <span className="text-muted-foreground">{label}</span>
+      <strong className="text-right">{value}</strong>
     </div>
   );
 }

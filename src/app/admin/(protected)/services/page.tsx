@@ -1,3 +1,6 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDb } from "@/lib/db";
 
 export default async function AdminServicesPage() {
@@ -7,8 +10,40 @@ export default async function AdminServicesPage() {
     <>
       <p className="eyebrow">Послуги</p>
       <h1 className="display mt-2 text-5xl">Каталог послуг</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">У цьому MVP каталог доступний для перевірки структури, цін та тривалостей. Повний редактор послуг — наступне ізольоване операційне розширення.</p>
-      <div className="mt-8 space-y-5">{categories.map((category) => <section key={category.id} className="border border-line bg-surface"><h2 className="border-b border-line px-5 py-4 font-bold">{category.name}</h2><div className="divide-y divide-line">{category.services.map((service) => <div key={service.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><span><strong className="block">{service.name}</strong><span className="text-sm text-muted">{service.isActive ? "Активна" : "Прихована"}</span></span><span className="text-sm text-muted">{service.durationMinutes} хв</span><strong>{service.basePriceUah.toLocaleString("uk-UA")} ₴</strong></div>)}</div></section>)}</div>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">У цьому MVP каталог доступний для перевірки структури, цін та тривалостей. Повний редактор послуг — наступне ізольоване операційне розширення.</p>
+      {categories.length ? (
+        <Tabs defaultValue={categories[0].id} className="mt-8">
+          <TabsList className="h-auto flex-wrap">
+            {categories.map((category) => (
+              <TabsTrigger key={category.id} value={category.id}>
+                {category.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {categories.map((category) => (
+            <TabsContent key={category.id} value={category.id}>
+              <Card>
+                <CardContent className="px-0">
+                  <div className="divide-y divide-line">
+                    {category.services.map((service) => (
+                      <div key={service.id} className="grid items-center gap-2 px-(--card-spacing) py-3 sm:grid-cols-[1fr_auto_auto]">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <strong>{service.name}</strong>
+                          <Badge variant={service.isActive ? "secondary" : "outline"}>{service.isActive ? "Активна" : "Прихована"}</Badge>
+                        </span>
+                        <span className="text-sm text-muted-foreground">{service.durationMinutes} хв</span>
+                        <strong>{service.basePriceUah.toLocaleString("uk-UA")} ₴</strong>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
+        </Tabs>
+      ) : (
+        <p className="mt-8 text-sm text-muted-foreground">Послуг ще немає.</p>
+      )}
     </>
   );
 }

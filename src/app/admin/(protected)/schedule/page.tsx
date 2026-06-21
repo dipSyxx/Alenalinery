@@ -7,5 +7,12 @@ export default async function AdminSchedulePage() {
     getDb().scheduleBlock.findMany({ where: { endAt: { gte: new Date() } }, orderBy: { startAt: "asc" } }),
   ]);
 
-  return <><p className="eyebrow">Графік</p><h1 className="display mt-2 text-5xl">Робочий час і блокування</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-muted">Ці налаштування безпосередньо впливають на публічно доступні слоти запису.</p><ScheduleEditor workingHours={workingHours} scheduleBlocks={scheduleBlocks} /></>;
+  return (
+    <>
+      <p className="eyebrow">Графік</p>
+      <h1 className="display mt-2 text-5xl">Робочий час і блокування</h1>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Ці налаштування безпосередньо впливають на публічно доступні слоти запису.</p>
+      <ScheduleEditor workingHours={workingHours} scheduleBlocks={scheduleBlocks} />
+    </>
+  );
 }

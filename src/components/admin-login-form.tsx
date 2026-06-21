@@ -4,6 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { signInAdmin, type AdminLoginState } from "@/app/admin/actions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const initialState: AdminLoginState = {};
 
@@ -12,15 +16,19 @@ export function AdminLoginForm() {
 
   return (
     <form action={action} className="mt-8 space-y-5" noValidate>
-      <label className="block">
-        <span className="field-label">Email</span>
-        <input className="field" type="email" name="email" autoComplete="email" required />
-      </label>
-      <label className="block">
-        <span className="field-label">Пароль</span>
-        <input className="field" type="password" name="password" autoComplete="current-password" required />
-      </label>
-      {state.error ? <p role="alert" className="border-l-2 border-accent py-2 pl-4 text-sm text-accent-strong">{state.error}</p> : null}
+      <div className="grid gap-1.5">
+        <Label htmlFor="admin-email">Email</Label>
+        <Input id="admin-email" className="h-11" type="email" name="email" autoComplete="email" required />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="admin-password">Пароль</Label>
+        <Input id="admin-password" className="h-11" type="password" name="password" autoComplete="current-password" required />
+      </div>
+      {state.error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
       <SubmitButton />
     </form>
   );
@@ -28,5 +36,9 @@ export function AdminLoginForm() {
 
 function SubmitButton() {
   const { pending } = useFormStatus();
-  return <button className="button-primary w-full" type="submit" disabled={pending}>{pending ? "Входимо…" : "Увійти"}</button>;
+  return (
+    <Button className="h-11 w-full" type="submit" disabled={pending}>
+      {pending ? "Входимо…" : "Увійти"}
+    </Button>
+  );
 }

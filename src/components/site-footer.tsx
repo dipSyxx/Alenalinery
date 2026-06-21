@@ -3,7 +3,7 @@ import Link from "next/link";
 export function SiteFooter() {
   return (
     <footer className="border-t border-line py-8">
-      <div className="container flex flex-col justify-between gap-4 text-sm text-muted sm:flex-row sm:items-center">
+      <div className="container flex flex-col justify-between gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center">
         <p>© {new Date().getFullYear()} Alenalinery. Студія волосся в Умані.</p>
         <div className="flex gap-4">
           <Link href="/services" className="hover:text-ink">

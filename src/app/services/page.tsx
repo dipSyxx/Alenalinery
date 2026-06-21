@@ -9,7 +9,7 @@ export default function ServicesPage() {
       <main className="container section">
         <p className="eyebrow">Послуги</p>
         <h1 className="display mt-3 max-w-2xl text-5xl sm:text-6xl">Послуги, адаптовані до вашого волосся.</h1>
-        <p className="mt-5 max-w-2xl leading-7 text-muted">
+        <p className="mt-5 max-w-2xl leading-7 text-muted-foreground">
           Вартість і тривалість залежать від довжини, густоти та стану волосся. Остаточний план складних робіт
           погоджуємо на консультації.
         </p>

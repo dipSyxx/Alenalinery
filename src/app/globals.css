@@ -1,17 +1,48 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
+  /* --- Alenalinery brand palette (warm, premium, beauty-studio) --- */
   --background: #f9f7f4;
   --surface: #fffdf9;
   --ink: #2f2928;
-  --muted: #706665;
+  --muted: #f1ebe4; /* warm subtle fill (shadcn bg-muted: tabs/table/skeleton/hovers) */
   --line: #e4dcd5;
-  --accent: #9c5c4b;
+  --accent: #9c5c4b; /* terracotta — primary brand / action colour */
   --accent-strong: #7d4437;
   --sage: #bfc8b5;
+
+  /* --- shadcn/ui semantic tokens, mapped onto the brand palette --- */
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent); /* shadcn primary == brand terracotta */
+  --primary-foreground: #fffdf9;
+  --secondary: #ece4db; /* warm fill for secondary surfaces (buttons, badges) */
+  --secondary-foreground: var(--ink);
+  --muted-foreground: #706665; /* brand secondary text (was project --muted) */
+  --accent-foreground: #fffdf9; /* text on terracotta hover/selection */
+  --destructive: #b3402e; /* warm brick red that harmonises with terracotta */
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+  --radius: 0rem; /* sharp corners — matches the established editorial design */
+
+  /* charts (unused today, kept warm for future on-brand data viz) */
+  --chart-1: var(--accent);
+  --chart-2: var(--sage);
+  --chart-3: var(--accent-strong);
+  --chart-4: #c8a48f;
+  --chart-5: #8f9c82;
 }
 
 @theme inline {
+  /* brand tokens */
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
@@ -19,8 +50,40 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
+  --color-sage: var(--sage);
   --font-sans: var(--font-manrope);
   --font-serif: var(--font-cormorant);
+  --font-heading: var(--font-manrope);
+
+  /* shadcn tokens */
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 * { box-sizing: border-box; }
@@ -43,3 +106,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .image-placeholder { position: relative; display: grid; min-height: 16rem; place-items: center; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(135deg, #e7dfd8, #d9c6bb); color: rgba(47,41,40,.75); }
 .image-placeholder::before { content: ""; position: absolute; inset: 1rem; border: 1px solid rgba(255,255,255,.55); }
 .image-placeholder span { position: relative; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

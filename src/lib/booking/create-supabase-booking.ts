@@ -2,7 +2,7 @@ import { BookingConflictError, BookingValidationError, parseBookingInput } from 
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service";
 import { normalizeUkrainianPhone } from "@/lib/validation/phone";
 
-export async function createSupabaseBooking(input: unknown) {
+export async function createSupabaseBooking(input: unknown, source: "WEBSITE" | "ADMIN" = "WEBSITE") {
   const payload = parseBookingInput(input);
   const phone = normalizeUkrainianPhone(payload.phone);
 
@@ -11,7 +11,8 @@ export async function createSupabaseBooking(input: unknown) {
   }
 
   const supabase = createServiceRoleSupabaseClient();
-  const result = await supabase.rpc("create_booking", {
+  const rpcName = source === "ADMIN" ? "create_admin_booking" : "create_booking";
+  const result = await supabase.rpc(rpcName, {
     p_service_id: payload.serviceId,
     p_date: payload.date,
     p_time: payload.time,

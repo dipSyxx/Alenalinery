@@ -72,7 +72,33 @@ npx supabase migration repair --linked --status applied 20260620233000
 npx supabase db push --linked --include-seed
 ```
 
+For a remote database that has `20260620233000` but not `20260621150000`, mark the baseline and push only the new migration:
+
+```bash
+npx supabase migration repair --linked --status applied 20260620233000
+npx supabase db push --linked
+```
+
 Do not run `db:reset --linked`; it destroys remote data.
+
+### Migration `20260621150000` — Admin booking operations
+
+Adds two service-role-only RPCs:
+
+- **`create_admin_booking`** — same 9 arguments as `create_booking`; calls it in a transaction then marks `source = 'ADMIN'` on the inserted row.
+- **`reschedule_booking(p_booking_id, p_date, p_time)`** — atomically moves a reschedulable booking to a new slot. Raises: `BOOKING_NOT_FOUND`, `BOOKING_NOT_RESCHEDULABLE`, `BOOKING_IN_PAST`, `BOOKING_RESCHEDULE_NO_CHANGE`, `BOOKING_CONFLICT`.
+
+Both functions: `revoke all from public; grant execute to service_role`. No public endpoint or anonymous client can invoke them.
+
+### Local RPC smoke tests
+
+After `db:reset`, verify the new RPCs against the local stack:
+
+```bash
+npx supabase db query --local --file tests/supabase-admin-booking-rpc.sql
+```
+
+The script finds an active service, creates a booking via `create_admin_booking`, asserts `source = 'ADMIN'`, reschedules it, asserts the change, verifies the idempotent-reschedule guard, then cleans up.
 
 ## Application checks
 
@@ -84,6 +110,26 @@ npm run cf:build
 ```
 
 The application intentionally does not start development or preview servers as part of these checks.
+
+### Full local acceptance sequence (feat/admin-booking-operations)
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run cf:build
+npx supabase db reset --local
+npx supabase db query --local --file tests/supabase-admin-booking-rpc.sql
+```
+
+All six commands must exit 0 before applying migrations to the hosted project.
+
+## Admin booking operations
+
+Authenticated admins at `/admin` can:
+
+- **Create a booking** — "Новий запис" button opens a sheet: select service, Kyiv date, available slot, then enter client name, phone, and optional Instagram/Telegram/comment. POSTs to `POST /api/admin/bookings`; source is recorded as `ADMIN`.
+- **View and manage bookings** — day-navigation workspace at `/admin/bookings`. Tap a card to open the detail sheet: view client contacts, add notes, advance the booking status, or reschedule. Status transitions are enforced by `assertBookingStatusTransition`; rescheduling uses `reschedule_booking` RPC.
+- **Delete schedule blocks** — tap the trash icon next to any upcoming block in `/admin/schedule` and confirm; calls `DELETE /api/admin/schedule/[id]`.
+
+All mutation endpoints call `getAdminProfileForApi()` first and return 401 if the session is missing or expired.
 
 ## Create the first admin
 

@@ -1,6 +1,8 @@
 .env
 .env.local
+.dev.vars
 .next
+.open-next
 node_modules
 coverage
 *.tsbuildinfo

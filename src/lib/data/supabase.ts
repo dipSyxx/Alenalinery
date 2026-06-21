@@ -1,16 +1,11 @@
 import "server-only";
 
 import type { BookingInterval, ScheduleBlockInterval, WorkingDay } from "@/lib/booking/availability";
+import { BookingConflictError, BookingValidationError } from "@/lib/booking/create-booking";
+import { assertBookingStatusTransition, type BookingStatus } from "@/lib/admin/booking-status";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service";
 
-export type BookingStatus =
-  | "PENDING_CONFIRMATION"
-  | "PENDING_PAYMENT"
-  | "CONFIRMED"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "NO_SHOW"
-  | "EXPIRED";
+export type { BookingStatus };
 
 export type ServiceRecord = {
   id: string;
@@ -54,10 +49,23 @@ export type ScheduleBlockRecord = {
 export type AdminBookingRecord = {
   id: string;
   startAt: Date;
+  endAt: Date;
   status: BookingStatus;
-  client: { name: string; phone: string };
-  service: { name: string };
+  source: "WEBSITE" | "ADMIN";
+  totalPriceUah: number;
+  clientComment: string | null;
+  adminNotes: string | null;
+  cancelledAt: Date | null;
+  client: { id: string; name: string; phone: string; instagram: string | null; telegram: string | null };
+  service: { id: string; name: string; durationMinutes: number; basePriceUah: number };
 };
+
+export class BookingNotFoundError extends Error {
+  constructor() {
+    super("BOOKING_NOT_FOUND");
+    this.name = "BookingNotFoundError";
+  }
+}
 
 type SupabaseError = { message: string; code?: string | null };
 
@@ -68,9 +76,15 @@ type RawBooking = {
   clientId: string;
   serviceId: string;
   startAt: string;
+  endAt: string;
   occupiedFrom: string;
   occupiedUntil: string;
   status: BookingStatus;
+  source: "WEBSITE" | "ADMIN";
+  totalPriceUah: number;
+  clientComment: string | null;
+  adminNotes: string | null;
+  cancelledAt: string | null;
 };
 
 function requireData<T>(data: T | null, error: SupabaseError | null, operation: string): T {
@@ -235,51 +249,15 @@ export async function getAdminProfileById(userId: string) {
   return result.data as { id: string; displayName: string; role: "ADMIN" } | null;
 }
 
-export async function getAdminBookings({
-  startAtGte,
-  startAtLt,
-  limit,
-}: {
-  startAtGte?: Date;
-  startAtLt?: Date;
-  limit?: number;
-} = {}): Promise<AdminBookingRecord[]> {
-  const supabase = createServiceRoleSupabaseClient();
-  let bookingsQuery = supabase
-    .from("Booking")
-    .select("id,clientId,serviceId,startAt,occupiedFrom,occupiedUntil,status")
-    .order("startAt", { ascending: false });
+const BOOKING_SELECT = "id,clientId,serviceId,startAt,endAt,occupiedFrom,occupiedUntil,status,source,totalPriceUah,clientComment,adminNotes,cancelledAt";
+const CLIENT_SELECT = "id,name,phone,instagram,telegram";
+const SERVICE_SELECT = "id,name,durationMinutes,basePriceUah";
 
-  if (startAtGte) bookingsQuery = bookingsQuery.gte("startAt", startAtGte.toISOString());
-  if (startAtLt) bookingsQuery = bookingsQuery.lt("startAt", startAtLt.toISOString());
-  if (limit) bookingsQuery = bookingsQuery.limit(limit);
-
-  const bookingsResult = await bookingsQuery;
-  const bookings = requireData(bookingsResult.data as RawBooking[] | null, bookingsResult.error, "Unable to load bookings");
-
-  if (!bookings.length) {
-    return [];
-  }
-
-  const clientIds = [...new Set(bookings.map((booking) => booking.clientId))];
-  const serviceIds = [...new Set(bookings.map((booking) => booking.serviceId))];
-  const [clientsResult, servicesResult] = await Promise.all([
-    supabase.from("Client").select("id,name,phone").in("id", clientIds),
-    supabase.from("Service").select("id,name").in("id", serviceIds),
-  ]);
-  const clients = requireData(
-    clientsResult.data as Array<{ id: string; name: string; phone: string }> | null,
-    clientsResult.error,
-    "Unable to load booking clients",
-  );
-  const services = requireData(
-    servicesResult.data as Array<{ id: string; name: string }> | null,
-    servicesResult.error,
-    "Unable to load booking services",
-  );
-  const clientsById = new Map(clients.map((client) => [client.id, client]));
-  const servicesById = new Map(services.map((service) => [service.id, service]));
-
+function mapBookingRows(
+  bookings: RawBooking[],
+  clientsById: Map<string, AdminBookingRecord["client"]>,
+  servicesById: Map<string, AdminBookingRecord["service"]>,
+): AdminBookingRecord[] {
   return bookings.map((booking) => {
     const client = clientsById.get(booking.clientId);
     const service = servicesById.get(booking.serviceId);
@@ -291,11 +269,90 @@ export async function getAdminBookings({
     return {
       id: booking.id,
       startAt: new Date(booking.startAt),
+      endAt: new Date(booking.endAt),
       status: booking.status,
+      source: booking.source,
+      totalPriceUah: booking.totalPriceUah,
+      clientComment: booking.clientComment,
+      adminNotes: booking.adminNotes,
+      cancelledAt: booking.cancelledAt ? new Date(booking.cancelledAt) : null,
       client,
       service,
     };
   });
+}
+
+export async function getAdminBookings({
+  startAtGte,
+  startAtLt,
+  limit,
+  ascending = false,
+}: {
+  startAtGte?: Date;
+  startAtLt?: Date;
+  limit?: number;
+  ascending?: boolean;
+} = {}): Promise<AdminBookingRecord[]> {
+  const supabase = createServiceRoleSupabaseClient();
+  let bookingsQuery = supabase
+    .from("Booking")
+    .select(BOOKING_SELECT)
+    .order("startAt", { ascending });
+
+  if (startAtGte) bookingsQuery = bookingsQuery.gte("startAt", startAtGte.toISOString());
+  if (startAtLt) bookingsQuery = bookingsQuery.lt("startAt", startAtLt.toISOString());
+  if (limit) bookingsQuery = bookingsQuery.limit(limit);
+
+  const bookingsResult = await bookingsQuery;
+  const bookings = requireData(bookingsResult.data as RawBooking[] | null, bookingsResult.error, "Unable to load bookings");
+
+  if (!bookings.length) return [];
+
+  const clientIds = [...new Set(bookings.map((b) => b.clientId))];
+  const serviceIds = [...new Set(bookings.map((b) => b.serviceId))];
+  const [clientsResult, servicesResult] = await Promise.all([
+    supabase.from("Client").select(CLIENT_SELECT).in("id", clientIds),
+    supabase.from("Service").select(SERVICE_SELECT).in("id", serviceIds),
+  ]);
+  const clients = requireData(
+    clientsResult.data as AdminBookingRecord["client"][] | null,
+    clientsResult.error,
+    "Unable to load booking clients",
+  );
+  const services = requireData(
+    servicesResult.data as AdminBookingRecord["service"][] | null,
+    servicesResult.error,
+    "Unable to load booking services",
+  );
+
+  return mapBookingRows(
+    bookings,
+    new Map(clients.map((c) => [c.id, c])),
+    new Map(services.map((s) => [s.id, s])),
+  );
+}
+
+export async function getAdminBookingById(id: string): Promise<AdminBookingRecord> {
+  const supabase = createServiceRoleSupabaseClient();
+  const result = await supabase.from("Booking").select(BOOKING_SELECT).eq("id", id).maybeSingle();
+
+  if (result.error) throw new Error(`Unable to load booking: ${result.error.message}`);
+  if (!result.data) throw new BookingNotFoundError();
+
+  const booking = result.data as RawBooking;
+  const [clientResult, serviceResult] = await Promise.all([
+    supabase.from("Client").select(CLIENT_SELECT).eq("id", booking.clientId).single(),
+    supabase.from("Service").select(SERVICE_SELECT).eq("id", booking.serviceId).single(),
+  ]);
+
+  if (clientResult.error || !clientResult.data) throw new Error("Unable to load booking client");
+  if (serviceResult.error || !serviceResult.data) throw new Error("Unable to load booking service");
+
+  return mapBookingRows(
+    [booking],
+    new Map([[booking.clientId, clientResult.data as AdminBookingRecord["client"]]]),
+    new Map([[booking.serviceId, serviceResult.data as AdminBookingRecord["service"]]]),
+  )[0]!;
 }
 
 export async function getClientCount(): Promise<number> {
@@ -370,15 +427,23 @@ export async function updateAdminBooking(
   id: string,
   values: { status?: BookingStatus; adminNotes?: string | null },
 ): Promise<{ id: string; status: BookingStatus; adminNotes: string | null; cancelledAt: Date | null }> {
+  if (values.status === undefined && values.adminNotes === undefined) {
+    throw new Error("updateAdminBooking requires at least one value to update.");
+  }
+
+  const supabase = createServiceRoleSupabaseClient();
   const update: Record<string, string | null> = {};
 
-  if (values.status) {
+  if (values.status !== undefined) {
+    const current = await supabase.from("Booking").select("status").eq("id", id).maybeSingle();
+    if (current.error || !current.data) throw new BookingNotFoundError();
+    assertBookingStatusTransition(current.data.status as BookingStatus, values.status);
     update.status = values.status;
     if (values.status === "CANCELLED") update.cancelledAt = new Date().toISOString();
   }
+
   if (values.adminNotes !== undefined) update.adminNotes = values.adminNotes;
 
-  const supabase = createServiceRoleSupabaseClient();
   const result = await supabase
     .from("Booking")
     .update(update)
@@ -392,4 +457,39 @@ export async function updateAdminBooking(
   );
 
   return { ...booking, cancelledAt: booking.cancelledAt ? new Date(booking.cancelledAt) : null };
+}
+
+export async function rescheduleAdminBooking(
+  id: string,
+  date: string,
+  time: string,
+): Promise<AdminBookingRecord> {
+  const supabase = createServiceRoleSupabaseClient();
+  const result = await supabase.rpc("reschedule_booking", {
+    p_booking_id: id,
+    p_date: date,
+    p_time: time,
+  });
+
+  if (result.error) {
+    const msg = result.error.message;
+    if (msg === "BOOKING_CONFLICT") throw new BookingConflictError();
+    if (msg === "BOOKING_NOT_FOUND") throw new BookingNotFoundError();
+    if (msg === "BOOKING_NOT_RESCHEDULABLE") throw new BookingValidationError("BOOKING_NOT_RESCHEDULABLE");
+    if (msg === "BOOKING_IN_PAST") throw new BookingValidationError("BOOKING_IN_PAST");
+    throw new Error(`Unable to reschedule booking: ${msg}`);
+  }
+
+  const raw = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (!raw) throw new BookingNotFoundError();
+
+  return getAdminBookingById(raw.id as string);
+}
+
+export async function deleteScheduleBlock(id: string): Promise<void> {
+  const supabase = createServiceRoleSupabaseClient();
+  const result = await supabase.from("ScheduleBlock").delete().eq("id", id).select("id").maybeSingle();
+
+  if (result.error) throw new Error(`Unable to delete schedule block: ${result.error.message}`);
+  if (!result.data) throw new BookingValidationError("SCHEDULE_BLOCK_NOT_FOUND");
 }

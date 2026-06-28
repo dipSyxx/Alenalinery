@@ -25,7 +25,7 @@ export function AdminLoginForm() {
         <Input id="admin-password" className="h-11" type="password" name="password" autoComplete="current-password" required />
       </div>
       {state.error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-studio-danger/35 bg-studio-accent-soft text-studio-ink">
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}

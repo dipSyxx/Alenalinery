@@ -22,14 +22,14 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[#f4f1ed] text-ink lg:grid lg:grid-cols-[16rem_1fr]">
+    <div className="admin-canvas lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Desktop sidebar */}
-      <aside className="hidden bg-ink text-white lg:flex lg:flex-col lg:border-r lg:border-white/10">
+      <aside className="hidden bg-studio-canvas-raised text-studio-surface lg:flex lg:flex-col lg:border-r lg:border-studio-surface/10">
         <div className="px-5 py-6">
           <Link href="/admin" className="font-serif text-3xl">Alenalinery</Link>
-          <p className="mt-1 text-xs text-white/60">Кабінет власниці</p>
+          <p className="mt-1 text-xs text-studio-surface/60">Кабінет власниці</p>
         </div>
-        <Separator className="bg-white/10" />
+        <Separator className="bg-studio-surface/10" />
         <nav className="flex flex-col gap-1 px-3 py-4" aria-label="Адмін-навігація">
           {links.map((link) => {
             const Icon = link.icon;
@@ -41,7 +41,9 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-10 items-center gap-2 px-3 text-sm font-semibold transition",
-                  active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white",
+                  active
+                    ? "bg-studio-surface/10 text-studio-surface"
+                    : "text-studio-surface/65 hover:bg-studio-surface/5 hover:text-studio-surface",
                 )}
               >
                 <Icon className="size-4" />
@@ -50,11 +52,11 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
             );
           })}
         </nav>
-        <p className="mt-auto px-5 py-5 text-xs text-white/60">{displayName}</p>
+        <p className="mt-auto px-5 py-5 text-xs text-studio-surface/60">{displayName}</p>
       </aside>
 
       {/* Mobile top header */}
-      <header className="flex items-center bg-ink px-4 py-3 text-white lg:hidden">
+      <header className="flex items-center bg-studio-canvas-raised px-4 py-3 text-studio-surface lg:hidden">
         <Link href="/admin" className="font-serif text-2xl">Alenalinery</Link>
       </header>
 
@@ -64,7 +66,7 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
 
       {/* Mobile fixed bottom nav */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-white/10 bg-ink text-white lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-studio-surface/10 bg-studio-canvas-raised text-studio-surface lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         aria-label="Адмін-навігація"
       >
@@ -79,7 +81,7 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition",
                 "min-h-[44px]",
-                active ? "text-white" : "text-white/55 hover:text-white",
+                active ? "text-studio-surface" : "text-studio-surface/55 hover:text-studio-surface",
               )}
             >
               <Icon className="size-5" />

@@ -86,13 +86,13 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
 
   return (
     <div className="mt-8 grid gap-8 xl:grid-cols-[1.1fr_.9fr]">
-      <Card>
-        <CardHeader className="border-b">
+      <Card className="admin-panel">
+        <CardHeader className="border-b border-studio-border">
           <CardTitle>Робочі години</CardTitle>
           <CardDescription>Час студії: Europe/Kyiv</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          <div className="divide-y divide-line">
+          <div className="divide-y divide-studio-border">
             {hours.map((row) => (
               <div key={row.id} className="grid items-center gap-3 px-(--card-spacing) py-3 sm:grid-cols-[8rem_1fr_1fr_auto_auto]">
                 <span className="font-medium">{weekdays[row.weekday]}</span>
@@ -113,7 +113,7 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
                 <label className="inline-flex items-center gap-2 text-xs">
                   <input
                     type="checkbox"
-                    className="size-4 accent-[var(--accent)]"
+                    className="size-4 accent-studio-accent"
                     checked={row.isWorkingDay}
                     onChange={(event) => setHours((items) => items.map((item) => (item.id === row.id ? { ...item, isWorkingDay: event.target.checked } : item)))}
                   />
@@ -128,7 +128,7 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="admin-panel">
         <CardHeader>
           <CardTitle>Заблокувати час</CardTitle>
         </CardHeader>
@@ -162,14 +162,14 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
             {scheduleBlocks.length ? (
               scheduleBlocks.map((block) => (
                 <div key={block.id} className="flex items-start justify-between gap-2">
-                  <div className="border-l-2 border-accent pl-3 text-sm">
+                  <div className="border-l-2 border-studio-accent pl-3 text-sm">
                     <strong className="block">{block.startAt.toLocaleString("uk-UA", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Kyiv" })}</strong>
-                    <span className="text-muted-foreground">{block.reason ?? "Без причини"}</span>
+                    <span className="text-studio-muted">{block.reason ?? "Без причини"}</span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="size-8 shrink-0 text-studio-danger hover:bg-studio-danger/10 hover:text-studio-danger"
                     aria-label="Видалити блокування"
                     onClick={() => setConfirmDeleteId(block.id)}
                   >
@@ -178,7 +178,7 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground">Майбутніх блокувань немає.</p>
+              <p className="text-sm text-studio-muted">Майбутніх блокувань немає.</p>
             )}
           </div>
         </CardContent>

@@ -7,13 +7,13 @@ type StatusConfig = {
 };
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
-  PENDING_CONFIRMATION: { label: "Очікує підтвердження", variant: "outline", className: "border-accent/40 text-accent" },
-  PENDING_PAYMENT: { label: "Очікує оплати", variant: "outline", className: "border-accent/40 text-accent" },
-  CONFIRMED: { label: "Підтверджено", variant: "default" },
-  COMPLETED: { label: "Завершено", variant: "secondary" },
-  CANCELLED: { label: "Скасовано", variant: "destructive" },
-  NO_SHOW: { label: "Не з’явились", variant: "destructive" },
-  EXPIRED: { label: "Протерміновано", variant: "secondary" },
+  PENDING_CONFIRMATION: { label: "Очікує підтвердження", variant: "outline", className: "border-studio-warning/40 text-studio-warning" },
+  PENDING_PAYMENT: { label: "Очікує оплати", variant: "outline", className: "border-studio-warning/40 text-studio-warning" },
+  CONFIRMED: { label: "Підтверджено", variant: "outline", className: "border-studio-success/40 bg-studio-success/10 text-studio-success" },
+  COMPLETED: { label: "Завершено", variant: "outline", className: "border-studio-accent/30 bg-studio-accent-soft text-studio-accent" },
+  CANCELLED: { label: "Скасовано", variant: "outline", className: "border-studio-danger/40 bg-studio-danger/10 text-studio-danger" },
+  NO_SHOW: { label: "Не з’явились", variant: "outline", className: "border-studio-danger/40 bg-studio-danger/10 text-studio-danger" },
+  EXPIRED: { label: "Протерміновано", variant: "outline", className: "border-studio-border bg-studio-surface-raised text-studio-muted" },
 };
 
 export function BookingStatusBadge({ status }: { status: string }) {

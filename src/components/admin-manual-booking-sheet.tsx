@@ -2,14 +2,13 @@
 
 import { formatInTimeZone } from "date-fns-tz";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { DateCalendarPopover } from "@/components/date-calendar-grid";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,8 +21,11 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [serviceId, setServiceId] = useState("");
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState("");
+  const [serviceSelectOpen, setServiceSelectOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const serviceSelectOpenRef = useRef(false);
+  const calendarOpenRef = useRef(false);
   const [slots, setSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -45,12 +47,11 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
 
   useEffect(() => {
     if (!serviceId || !date) return;
-    const dateStr = formatInTimeZone(date, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingSlots(true);
     setSlots([]);
     setSelectedSlot(null);
-    fetch(`/api/availability?serviceId=${serviceId}&date=${dateStr}`)
+    fetch(`/api/availability?serviceId=${serviceId}&date=${date}`)
       .then((r) => r.json() as Promise<{ slots?: string[] }>)
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]))
@@ -59,7 +60,9 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
 
   function resetForm() {
     setServiceId("");
-    setDate(undefined);
+    setDate("");
+    setServicePickerOpen(false);
+    setDatePickerOpen(false);
     setSlots([]);
     setSelectedSlot(null);
     setName("");
@@ -73,7 +76,6 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!serviceId || !date || !selectedSlot || !name || !phone) return;
-    const dateStr = formatInTimeZone(date, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
     const timeStr = formatInTimeZone(new Date(selectedSlot), BUSINESS_TIME_ZONE, "HH:mm");
     setSubmitting(true);
     setError(null);
@@ -83,7 +85,7 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId,
-          date: dateStr,
+          date,
           time: timeStr,
           name: name.trim(),
           phone: phone.trim(),
@@ -108,6 +110,17 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
   }
 
   const allServices = categories.flatMap((c) => c.services);
+  const minimumDate = formatInTimeZone(new Date(), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
+
+  function setServicePickerOpen(open: boolean) {
+    serviceSelectOpenRef.current = open;
+    setServiceSelectOpen(open);
+  }
+
+  function setDatePickerOpen(open: boolean) {
+    calendarOpenRef.current = open;
+    setCalendarOpen(open);
+  }
 
   return (
     <Sheet
@@ -119,22 +132,39 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
         }
       }}
     >
-      <SheetContent side="bottom" className="flex max-h-[95dvh] flex-col rounded-t-2xl p-0 sm:max-w-none">
-        <SheetHeader className="border-b px-5 py-4">
+      <SheetContent
+        side="bottom"
+        className="flex max-h-[95dvh] flex-col rounded-t-2xl bg-studio-surface p-0 text-studio-ink sm:max-w-none"
+        onInteractOutside={(event) => {
+          if (serviceSelectOpenRef.current || calendarOpenRef.current) {
+            event.preventDefault();
+          }
+        }}
+      >
+        <SheetHeader className="border-b border-studio-border px-5 py-4">
           <SheetTitle>Новий запис</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="space-y-4 p-5">
             <div className="space-y-1.5">
               <Label>Послуга *</Label>
-              <Select value={serviceId} onValueChange={setServiceId}>
+              <Select
+                open={serviceSelectOpen}
+                onOpenChange={setServicePickerOpen}
+                value={serviceId}
+                onValueChange={(value) => {
+                  setServiceId(value);
+                  setSlots([]);
+                  setSelectedSlot(null);
+                }}
+              >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Оберіть послугу" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
                     <div key={cat.name}>
-                      <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">{cat.name}</p>
+                      <p className="px-2 py-1 text-xs font-semibold text-studio-muted">{cat.name}</p>
                       {cat.services.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name}
@@ -143,7 +173,7 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
                     </div>
                   ))}
                   {allServices.length === 0 && (
-                    <p className="px-2 py-2 text-sm text-muted-foreground">Послуги не знайдено.</p>
+                    <p className="px-2 py-2 text-sm text-studio-muted">Послуги не знайдено.</p>
                   )}
                 </SelectContent>
               </Select>
@@ -151,33 +181,23 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
 
             <div className="space-y-1.5">
               <Label>Дата *</Label>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="h-11 w-full justify-start">
-                    {date ? formatInTimeZone(date, BUSINESS_TIME_ZONE, "d MMMM yyyy") : "Оберіть дату"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => {
-                      setDate(d);
-                      setCalendarOpen(false);
-                    }}
-                    disabled={(d) => d < new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
+              <DateCalendarPopover
+                value={date}
+                onChange={setDate}
+                minDate={minimumDate}
+                open={calendarOpen}
+                onOpenChange={setDatePickerOpen}
+                label="Дата нового запису"
+              />
             </div>
 
             {date && serviceId && (
               <div className="space-y-1.5">
                 <Label>Час *</Label>
                 {loadingSlots ? (
-                  <p className="text-sm text-muted-foreground">Завантаження…</p>
+                  <p className="text-sm text-studio-muted">Завантаження…</p>
                 ) : slots.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Вільного часу немає.</p>
+                  <p className="text-sm text-studio-muted">Вільного часу немає.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {slots.map((slot) => (
@@ -221,7 +241,7 @@ export function AdminManualBookingSheet({ open, onClose }: { open: boolean; onCl
               <Textarea id="m-comment" value={clientComment} onChange={(e) => setClientComment(e.target.value)} placeholder="Побажання…" rows={3} className="resize-none" />
             </div>
 
-            {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+            {error && <p className="border border-studio-danger/35 bg-studio-accent-soft p-3 text-sm text-studio-danger">{error}</p>}
 
             <Button type="submit" className="h-11 w-full" disabled={submitting || !serviceId || !date || !selectedSlot || !name || !phone}>
               {submitting ? "Збереження…" : "Створити запис"}

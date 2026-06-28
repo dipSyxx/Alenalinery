@@ -75,9 +75,13 @@ describe("createBooking", () => {
       },
     });
 
-    await expect(createBooking(validInput, { repository, timeZone: "Europe/Kyiv" })).rejects.toBeInstanceOf(
-      BookingConflictError,
-    );
+    await expect(
+      createBooking(validInput, {
+        repository,
+        timeZone: "Europe/Kyiv",
+        now: new Date("2026-06-22T07:00:00.000Z"),
+      }),
+    ).rejects.toBeInstanceOf(BookingConflictError);
     expect(bookingLookupCount).toBe(2);
   });
 });

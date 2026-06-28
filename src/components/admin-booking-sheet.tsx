@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { BookingStatusBadge } from "@/components/booking-status-badge";
+import { DateCalendarPopover } from "@/components/date-calendar-grid";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,7 +65,7 @@ export function AdminBookingSheet({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
+  const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleSlots, setRescheduleSlots] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -78,7 +77,7 @@ export function AdminBookingSheet({
       setNotes(booking.adminNotes ?? "");
       setMode("details");
       setActionError(null);
-      setRescheduleDate(undefined);
+      setRescheduleDate("");
       setRescheduleSlots([]);
       setSelectedSlot(null);
     }
@@ -86,12 +85,11 @@ export function AdminBookingSheet({
 
   useEffect(() => {
     if (!rescheduleDate || !booking) return;
-    const dateStr = formatInTimeZone(rescheduleDate, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingSlots(true);
     setRescheduleSlots([]);
     setSelectedSlot(null);
-    fetch(`/api/availability?serviceId=${booking.service.id}&date=${dateStr}`)
+    fetch(`/api/availability?serviceId=${booking.service.id}&date=${rescheduleDate}`)
       .then((r) => r.json() as Promise<{ slots?: string[] }>)
       .then((data) => setRescheduleSlots(data.slots ?? []))
       .catch(() => setRescheduleSlots([]))
@@ -151,13 +149,12 @@ export function AdminBookingSheet({
     if (!booking || !rescheduleDate || !selectedSlot) return;
     setSubmittingReschedule(true);
     setActionError(null);
-    const dateStr = formatInTimeZone(rescheduleDate, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
     const timeStr = formatInTimeZone(new Date(selectedSlot), BUSINESS_TIME_ZONE, "HH:mm");
     try {
       const res = await fetch(`/api/admin/bookings/${booking.id}/reschedule`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: dateStr, time: timeStr }),
+        body: JSON.stringify({ date: rescheduleDate, time: timeStr }),
       });
       if (!res.ok) {
         const body = (await res.json()) as { message?: string };
@@ -179,6 +176,7 @@ export function AdminBookingSheet({
   const startAt = new Date(booking.startAtISO);
   const allowedStatuses = getAllowedBookingStatuses(booking.status);
   const telegramHref = booking.client.telegram ? getTelegramHref(booking.client.telegram) : null;
+  const minimumDate = formatInTimeZone(new Date(), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
 
   return (
     <>
@@ -188,8 +186,8 @@ export function AdminBookingSheet({
           if (!open) onClose();
         }}
       >
-        <SheetContent side="bottom" className="flex max-h-[90dvh] flex-col rounded-t-2xl p-0 sm:max-w-none">
-          <SheetHeader className="border-b px-5 py-4">
+        <SheetContent side="bottom" className="flex max-h-[90dvh] flex-col rounded-t-2xl bg-studio-surface p-0 text-studio-ink sm:max-w-none">
+          <SheetHeader className="border-b border-studio-border px-5 py-4">
             <SheetTitle className="flex items-center gap-3 text-base">
               <BookingStatusBadge status={booking.status} />
               <span>{booking.client.name}</span>
@@ -203,7 +201,7 @@ export function AdminBookingSheet({
                   <p className="font-semibold">
                     {formatInTimeZone(startAt, BUSINESS_TIME_ZONE, "EEEE, d MMMM yyyy 'о' HH:mm")}
                   </p>
-                  <p className="text-muted-foreground">
+                  <p className="text-studio-muted">
                     {booking.service.name} · {booking.service.durationMinutes} хв · {booking.service.basePriceUah} грн
                   </p>
                 </div>
@@ -228,8 +226,8 @@ export function AdminBookingSheet({
                 </div>
 
                 {booking.clientComment && (
-                  <div className="rounded-md bg-muted/50 p-3 text-sm">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="bg-studio-surface-raised p-3 text-sm">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-studio-muted">
                       Коментар клієнта
                     </p>
                     <p>{booking.clientComment}</p>
@@ -239,7 +237,7 @@ export function AdminBookingSheet({
                 <Separator />
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Нотатки</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Нотатки</p>
                   <Textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -253,14 +251,14 @@ export function AdminBookingSheet({
                 </div>
 
                 {actionError && (
-                  <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{actionError}</p>
+                  <p className="border border-studio-danger/35 bg-studio-accent-soft p-3 text-sm text-studio-danger">{actionError}</p>
                 )}
 
                 {allowedStatuses.length > 0 && (
                   <>
                     <Separator />
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Дії</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Дії</p>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => setMode("reschedule")}>
                           Перенести
@@ -293,31 +291,20 @@ export function AdminBookingSheet({
                   ← Назад
                 </Button>
                 <p className="font-semibold">Перенести запис</p>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      {rescheduleDate
-                        ? formatInTimeZone(rescheduleDate, BUSINESS_TIME_ZONE, "d MMMM yyyy")
-                        : "Оберіть дату"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={rescheduleDate}
-                      onSelect={setRescheduleDate}
-                      disabled={(d) => d < new Date()}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateCalendarPopover
+                  value={rescheduleDate}
+                  onChange={setRescheduleDate}
+                  minDate={minimumDate}
+                  label="Дата перенесення запису"
+                />
 
                 {rescheduleDate && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Вільний час</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Вільний час</p>
                     {loadingSlots ? (
-                      <p className="text-sm text-muted-foreground">Завантаження…</p>
+                      <p className="text-sm text-studio-muted">Завантаження…</p>
                     ) : rescheduleSlots.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Вільного часу немає.</p>
+                      <p className="text-sm text-studio-muted">Вільного часу немає.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {rescheduleSlots.map((slot) => (
@@ -336,7 +323,7 @@ export function AdminBookingSheet({
                 )}
 
                 {actionError && (
-                  <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{actionError}</p>
+                  <p className="border border-studio-danger/35 bg-studio-accent-soft p-3 text-sm text-studio-danger">{actionError}</p>
                 )}
 
                 <Button

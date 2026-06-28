@@ -5,13 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function AdminLoginPage() {
   return (
-    <main className="grid min-h-screen place-items-center p-5">
-      <Card className="w-full max-w-md [--card-spacing:--spacing(8)]">
+    <main className="admin-canvas grid place-items-center p-5">
+      <Card className="admin-panel w-full max-w-md [--card-spacing:--spacing(8)]">
         <CardContent>
           <Link href="/" className="font-serif text-3xl font-semibold">Alenalinery</Link>
           <p className="eyebrow mt-8">Адмін-панель</p>
-          <h1 className="display mt-2 text-4xl">Вхід для власниці</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">Використовуйте облікові дані, створені в Supabase Auth.</p>
+          <h1 className="admin-page-title mt-2 text-4xl">Вхід для власниці</h1>
+          <p className="mt-3 text-sm leading-6 text-studio-muted">Використовуйте облікові дані, створені в Supabase Auth.</p>
           <AdminLoginForm />
         </CardContent>
       </Card>

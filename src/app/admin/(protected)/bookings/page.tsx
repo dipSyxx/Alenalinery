@@ -3,9 +3,8 @@ import { formatInTimeZone } from "date-fns-tz";
 
 import { AdminBookingsWorkspace, type AdminBookingView } from "@/components/admin-bookings-workspace";
 import { getAdminBookings } from "@/lib/data/supabase";
+import { DATE_KEY_PATTERN } from "@/lib/date-key";
 import { BUSINESS_TIME_ZONE, getZonedDateTime } from "@/lib/timezone";
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function AdminBookingsPage({
   searchParams,
@@ -14,7 +13,7 @@ export default async function AdminBookingsPage({
 }) {
   const { date: rawDate } = await searchParams;
   const today = formatInTimeZone(new Date(), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
-  const selectedDate = rawDate && DATE_PATTERN.test(rawDate) ? rawDate : today;
+  const selectedDate = rawDate && DATE_KEY_PATTERN.test(rawDate) ? rawDate : today;
 
   const dayStart = getZonedDateTime(selectedDate, "00:00", BUSINESS_TIME_ZONE);
   const nextDay = formatInTimeZone(
@@ -43,6 +42,7 @@ export default async function AdminBookingsPage({
   return (
     <>
       <p className="eyebrow">Записи</p>
+      <h1 className="admin-page-title mt-2 text-5xl">Керування записами</h1>
       <div className="mt-4">
         <AdminBookingsWorkspace
           bookings={bookings}

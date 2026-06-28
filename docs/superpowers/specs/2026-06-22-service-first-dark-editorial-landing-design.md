@@ -45,8 +45,8 @@ The primary visitor is a mobile user looking for a colourist or restorative hair
    - Reinforce that the studio works with the individual condition and goal of the client’s hair.
 
 4. **Portfolio preview**
-   - An asymmetric editorial gallery of real or generated hair-result photography. It is a visual proof section, not a product gallery.
-   - Until final approved portfolio photos exist, generated editorial hair images must be used; generic gradient placeholders are prohibited.
+   - An asymmetric editorial gallery slot that will hold real hair-result photography. It is a visual proof section, not a product gallery.
+   - Until final approved portfolio photos exist, use clearly labelled, deliberately styled placeholder frames.
 
 5. **Booking close**
    - A high-contrast final band with a single booking CTA to `/booking` and restrained explanatory copy.
@@ -64,7 +64,7 @@ The primary visitor is a mobile user looking for a colourist or restorative hair
 
 - Retain Next.js, Tailwind v4 utilities, existing `SiteHeader`, `SiteFooter`, `/services`, and `/booking` routes.
 - Replace only landing-specific markup and styles; do not alter booking API contracts or service data fetching.
-- Generate standalone image assets for the hero, studio approach, and portfolio before replacing placeholders. Keep controls, navigation, headings, and CTAs as semantic code-native UI.
+- Keep hero, studio approach, and portfolio media as explicit placeholders until approved studio photography is supplied. Keep controls, navigation, headings, and CTAs as semantic code-native UI.
 - Update shared chrome to support a dark landing variant without breaking its light pages.
 
 ## Accessibility and quality gates
@@ -78,3 +78,7 @@ The primary visitor is a mobile user looking for a colourist or restorative hair
 
 - No online shop, product cards, carousel, shopping cart, checkout, testimonials, pricing table, map, or unverified social/contact links.
 - No changes to booking availability, booking form behavior, services API, Supabase schema, or admin features.
+
+## Temporary media decision
+
+On 2026-06-22, the owner chose to defer generated and production photography. The redesigned landing therefore uses deliberately styled, labelled image placeholders for the hero, studio approach, and portfolio sections. Replace them with approved studio photography before a public production launch.

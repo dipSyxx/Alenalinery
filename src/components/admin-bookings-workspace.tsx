@@ -9,10 +9,10 @@ import { useState } from "react";
 import { AdminBookingSheet } from "@/components/admin-booking-sheet";
 import { AdminManualBookingSheet } from "@/components/admin-manual-booking-sheet";
 import { BookingStatusBadge } from "@/components/booking-status-badge";
+import { DateCalendarPopover } from "@/components/date-calendar-grid";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { BookingStatus } from "@/lib/admin/booking-status";
+import { dateKeyToDate, dateToKey } from "@/lib/date-key";
 import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
 
 // Serializable booking view — all Date objects converted to ISO strings for client components
@@ -67,23 +67,25 @@ export function AdminBookingsWorkspace({
   const searchParams = useSearchParams();
   const [filter, setFilter] = useState<Filter>(showManualCreate ? "active" : "all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
 
-  const currentDate = new Date(`${selectedDate}T12:00:00Z`);
+  const currentDate = dateKeyToDate(selectedDate);
   const filtered = filterBookings(bookings, filter);
   const selectedBooking = selectedId ? (bookings.find((b) => b.id === selectedId) ?? null) : null;
 
-  function navigateDate(date: Date) {
-    const dateStr = formatInTimeZone(date, BUSINESS_TIME_ZONE, "yyyy-MM-dd");
+  function navigateDateKey(dateStr: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("date", dateStr);
     router.push(`?${params.toString()}`);
   }
 
+  function navigateDate(date: Date) {
+    navigateDateKey(dateToKey(date));
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Button
             variant="outline"
@@ -94,25 +96,12 @@ export function AdminBookingsWorkspace({
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="min-w-36 text-sm">
-                {formatInTimeZone(currentDate, BUSINESS_TIME_ZONE, "d MMMM yyyy")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={currentDate}
-                onSelect={(d) => {
-                  if (d) {
-                    navigateDate(d);
-                    setCalendarOpen(false);
-                  }
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          <DateCalendarPopover
+            value={selectedDate}
+            onChange={navigateDateKey}
+            triggerClassName="h-9 min-w-40 text-sm"
+            label="Дата записів"
+          />
           <Button
             variant="outline"
             size="icon"
@@ -147,14 +136,14 @@ export function AdminBookingsWorkspace({
 
       <div className="mt-4 space-y-2">
         {filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          <div className="border border-dashed border-studio-border p-8 text-center text-sm text-studio-muted">
             {filter === "active" ? "Активних записів немає." : "Записів немає."}
           </div>
         ) : (
           filtered.map((booking) => (
             <button
               key={booking.id}
-              className="w-full rounded-xl border bg-white px-4 py-3 text-left transition hover:shadow-sm active:scale-[0.99]"
+              className="w-full border border-studio-border bg-studio-surface px-4 py-3 text-left transition hover:border-studio-accent hover:bg-studio-surface-raised active:scale-[0.99]"
               onClick={() => setSelectedId(booking.id)}
             >
               <div className="flex items-start justify-between gap-2">
@@ -165,7 +154,7 @@ export function AdminBookingsWorkspace({
                     </span>
                     <span className="truncate text-sm font-medium">{booking.client.name}</span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{booking.service.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-studio-muted">{booking.service.name}</p>
                 </div>
                 <BookingStatusBadge status={booking.status} />
               </div>

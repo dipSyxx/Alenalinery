@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 
 const initialState: AdminLoginState = {};
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ nextPath }: { nextPath: string }) {
   const [state, action] = useActionState(signInAdmin, initialState);
 
   return (
     <form action={action} className="mt-8 space-y-5" noValidate>
+      <input type="hidden" name="next" value={nextPath} />
       <div className="grid gap-1.5">
         <Label htmlFor="admin-email">Email</Label>
         <Input id="admin-email" className="h-11" type="email" name="email" autoComplete="email" required />

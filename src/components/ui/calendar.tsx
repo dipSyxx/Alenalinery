@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { uk } from "date-fns/locale"
 import {
   DayPicker,
   getDefaultClassNames,
@@ -11,6 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+import { WEEK_STARTS_ON } from "@/lib/week"
 
 function Calendar({
   className,
@@ -18,7 +20,8 @@ function Calendar({
   showOutsideDays = true,
   captionLayout = "label",
   buttonVariant = "ghost",
-  locale,
+  locale = uk,
+  weekStartsOn = WEEK_STARTS_ON,
   formatters,
   components,
   ...props
@@ -38,6 +41,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
+      weekStartsOn={weekStartsOn}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString(locale?.code, { month: "short" }),

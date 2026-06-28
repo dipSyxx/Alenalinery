@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, LayoutDashboard, Scissors, Settings2 } from "lucide-react";
+import { CalendarDays, LayoutDashboard, LogOut, Scissors, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -52,12 +53,30 @@ export function AdminShell({ children, displayName }: { children: React.ReactNod
             );
           })}
         </nav>
-        <p className="mt-auto px-5 py-5 text-xs text-studio-surface/60">{displayName}</p>
+        <div className="mt-auto px-5 py-5">
+          <p className="text-xs text-studio-surface/60">{displayName}</p>
+          <form action="/api/admin/logout" method="post" className="mt-3">
+            <Button className="h-9 w-full justify-start text-studio-surface/75 hover:bg-studio-surface/10 hover:text-studio-surface" variant="ghost" type="submit">
+              <LogOut className="size-4" /> Вийти
+            </Button>
+          </form>
+        </div>
       </aside>
 
       {/* Mobile top header */}
-      <header className="flex items-center bg-studio-canvas-raised px-4 py-3 text-studio-surface lg:hidden">
+      <header className="flex items-center justify-between bg-studio-canvas-raised px-4 py-3 text-studio-surface lg:hidden">
         <Link href="/admin" className="font-serif text-2xl">Alenalinery</Link>
+        <form action="/api/admin/logout" method="post">
+          <Button
+            className="text-studio-surface/75 hover:bg-studio-surface/10 hover:text-studio-surface"
+            variant="ghost"
+            size="icon"
+            type="submit"
+            aria-label="Вийти з адмінки"
+          >
+            <LogOut className="size-4" />
+          </Button>
+        </form>
       </header>
 
       <main className="p-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:p-8 lg:p-10 lg:pb-10">

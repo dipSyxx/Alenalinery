@@ -4,6 +4,7 @@ import type { BookingInterval, ScheduleBlockInterval, WorkingDay } from "@/lib/b
 import { BookingConflictError, BookingValidationError } from "@/lib/booking/create-booking";
 import { assertBookingStatusTransition, type BookingStatus } from "@/lib/admin/booking-status";
 import { createServiceRoleSupabaseClient } from "@/lib/supabase/service";
+import { compareWeekdayMondayFirst } from "@/lib/week";
 
 export type { BookingStatus };
 
@@ -87,6 +88,11 @@ type RawBooking = {
   cancelledAt: string | null;
 };
 
+type AdminServiceMutationValues = Omit<ServiceRecord, "id" | "slug">;
+
+const SERVICE_RECORD_SELECT =
+  "id,categoryId,name,slug,description,basePriceUah,durationMinutes,bufferBeforeMinutes,bufferAfterMinutes,requiresConsultation,requiresDeposit,depositAmountUah,isActive,sortOrder";
+
 function requireData<T>(data: T | null, error: SupabaseError | null, operation: string): T {
   if (error) {
     throw new Error(`${operation}: ${error.message}`);
@@ -101,6 +107,18 @@ function requireData<T>(data: T | null, error: SupabaseError | null, operation: 
 
 function requireSingle<T>(data: T | null, error: SupabaseError | null, operation: string): T {
   return requireData(data, error, operation);
+}
+
+function makeServiceSlug(name: string): string {
+  const base =
+    name
+      .normalize("NFKC")
+      .toLocaleLowerCase("uk-UA")
+      .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "service";
+
+  return `${base}-${Date.now().toString(36)}`;
 }
 
 export async function getPublicServiceCategories(): Promise<ServiceCategoryRecord[]> {
@@ -119,9 +137,7 @@ async function getServiceCategories({ activeOnly }: { activeOnly: boolean }): Pr
     .order("sortOrder", { ascending: true });
   let servicesQuery = supabase
     .from("Service")
-    .select(
-      "id,categoryId,name,slug,description,basePriceUah,durationMinutes,bufferBeforeMinutes,bufferAfterMinutes,requiresConsultation,requiresDeposit,depositAmountUah,isActive,sortOrder",
-    )
+    .select(SERVICE_RECORD_SELECT)
     .order("sortOrder", { ascending: true });
 
   if (activeOnly) {
@@ -158,9 +174,7 @@ export async function getActiveService(serviceId: string): Promise<ServiceRecord
   const supabase = createServiceRoleSupabaseClient();
   const result = await supabase
     .from("Service")
-    .select(
-      "id,categoryId,name,slug,description,basePriceUah,durationMinutes,bufferBeforeMinutes,bufferAfterMinutes,requiresConsultation,requiresDeposit,depositAmountUah,isActive,sortOrder",
-    )
+    .select(SERVICE_RECORD_SELECT)
     .eq("id", serviceId)
     .eq("isActive", true)
     .maybeSingle();
@@ -170,6 +184,32 @@ export async function getActiveService(serviceId: string): Promise<ServiceRecord
   }
 
   return result.data as ServiceRecord | null;
+}
+
+export async function createAdminService(values: AdminServiceMutationValues): Promise<ServiceRecord> {
+  const supabase = createServiceRoleSupabaseClient();
+  const result = await supabase
+    .from("Service")
+    .insert({ ...values, slug: makeServiceSlug(values.name) })
+    .select(SERVICE_RECORD_SELECT)
+    .single();
+
+  return requireSingle(result.data as ServiceRecord | null, result.error, "Unable to create service");
+}
+
+export async function updateAdminService(id: string, values: AdminServiceMutationValues): Promise<ServiceRecord> {
+  const supabase = createServiceRoleSupabaseClient();
+  const result = await supabase
+    .from("Service")
+    .update(values)
+    .eq("id", id)
+    .select(SERVICE_RECORD_SELECT)
+    .maybeSingle();
+
+  if (result.error) throw new Error(`Unable to update service: ${result.error.message}`);
+  if (!result.data) throw new BookingValidationError("SERVICE_NOT_FOUND");
+
+  return result.data as ServiceRecord;
 }
 
 export async function getWorkingHoursByWeekday(weekday: number): Promise<WorkingHoursRecord | null> {
@@ -373,7 +413,9 @@ export async function getWorkingHours(): Promise<WorkingHoursRecord[]> {
     .select("id,weekday,startTime,endTime,isWorkingDay")
     .order("weekday", { ascending: true });
 
-  return requireData(result.data as WorkingHoursRecord[] | null, result.error, "Unable to load working hours");
+  const rows = requireData(result.data as WorkingHoursRecord[] | null, result.error, "Unable to load working hours");
+
+  return [...rows].sort((a, b) => compareWeekdayMondayFirst(a.weekday, b.weekday));
 }
 
 export async function getFutureScheduleBlocks(now = new Date()): Promise<ScheduleBlockRecord[]> {

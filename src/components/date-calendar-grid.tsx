@@ -19,9 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { dateKeyToDate, dateToKey, formatDateKey, isDateKey } from "@/lib/date-key";
-
-const WEEK_STARTS_ON = 1;
-const WEEKDAY_LABELS = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"];
+import { WEEK_STARTS_ON, WEEKDAY_SHORT_LABELS_MONDAY_FIRST } from "@/lib/week";
 
 const monthVariants = {
   enter: (direction: number) => ({
@@ -114,7 +112,7 @@ export function DateCalendarGrid({
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[0.68rem] font-bold uppercase tracking-wide text-studio-muted">
-        {WEEKDAY_LABELS.map((weekday) => (
+        {WEEKDAY_SHORT_LABELS_MONDAY_FIRST.map((weekday) => (
           <span key={weekday}>{weekday}</span>
         ))}
       </div>

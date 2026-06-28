@@ -31,7 +31,7 @@ export async function updateSupabaseSession(request: NextRequest) {
   if (!data?.claims && isProtectedAdminPath(request.nextUrl.pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/admin/login";
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    loginUrl.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { fromZonedTime } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { DateCalendarPopover } from "@/components/date-calendar-grid";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,8 +20,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-
-const weekdays = ["Неділя", "Понеділок", "Вівторок", "Середа", "Четвер", "П’ятниця", "Субота"];
+import { BUSINESS_TIME_ZONE } from "@/lib/timezone";
+import { WEEKDAY_NAMES_BY_INDEX } from "@/lib/week";
 
 type WorkingHours = { id: string; weekday: number; startTime: string; endTime: string; isWorkingDay: boolean };
 type ScheduleBlock = { id: string; startAt: Date; endAt: Date; reason: string | null };
@@ -31,6 +32,8 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
   const [savingId, setSavingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [blockDate, setBlockDate] = useState("");
+  const [creatingBlock, setCreatingBlock] = useState(false);
 
   async function deleteBlock(id: string) {
     setDeletingId(id);
@@ -52,7 +55,7 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
     try {
       const response = await fetch("/api/admin/schedule", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "working-hours", ...row }) });
       if (!response.ok) throw new Error();
-      toast.success(`Збережено: ${weekdays[row.weekday]}`);
+      toast.success(`Збережено: ${WEEKDAY_NAMES_BY_INDEX[row.weekday]}`);
       router.refresh();
     } catch {
       toast.error("Не вдалося зберегти робочі години.");
@@ -61,51 +64,71 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
     }
   }
 
-  async function createBlock(formData: FormData) {
+  async function createBlock(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!blockDate) {
+      toast.error("Оберіть дату блокування.");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const date = String(formData.get("date"));
     const startTime = String(formData.get("startTime"));
     const endTime = String(formData.get("endTime"));
-    const response = await fetch("/api/admin/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kind: "schedule-block",
-        startAt: fromZonedTime(`${date}T${startTime}:00`, "Europe/Kyiv").toISOString(),
-        endAt: fromZonedTime(`${date}T${endTime}:00`, "Europe/Kyiv").toISOString(),
-        reason: String(formData.get("reason") ?? ""),
-      }),
-    });
-    const body = (await response.json()) as { message?: string };
-    if (!response.ok) {
-      toast.error(body.message ?? "Не вдалося створити блокування.");
-      return;
+
+    setCreatingBlock(true);
+    try {
+      const response = await fetch("/api/admin/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "schedule-block",
+          startAt: fromZonedTime(`${date}T${startTime}:00`, BUSINESS_TIME_ZONE).toISOString(),
+          endAt: fromZonedTime(`${date}T${endTime}:00`, BUSINESS_TIME_ZONE).toISOString(),
+          reason: String(formData.get("reason") ?? ""),
+        }),
+      });
+      const body = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        toast.error(body.message ?? "Не вдалося створити блокування.");
+        return;
+      }
+      toast.success("Блокування додано.");
+      setBlockDate("");
+      form.reset();
+      router.refresh();
+    } catch {
+      toast.error("Не вдалося створити блокування.");
+    } finally {
+      setCreatingBlock(false);
     }
-    toast.success("Блокування додано.");
-    router.refresh();
   }
+
+  const minimumBlockDate = formatInTimeZone(new Date(), BUSINESS_TIME_ZONE, "yyyy-MM-dd");
 
   return (
     <div className="mt-8 grid gap-8 xl:grid-cols-[1.1fr_.9fr]">
       <Card className="admin-panel">
         <CardHeader className="border-b border-studio-border">
           <CardTitle>Робочі години</CardTitle>
-          <CardDescription>Час студії: Europe/Kyiv</CardDescription>
+          <CardDescription>Час студії: {BUSINESS_TIME_ZONE}</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <div className="divide-y divide-studio-border">
             {hours.map((row) => (
               <div key={row.id} className="grid items-center gap-3 px-(--card-spacing) py-3 sm:grid-cols-[8rem_1fr_1fr_auto_auto]">
-                <span className="font-medium">{weekdays[row.weekday]}</span>
+                <span className="font-medium">{WEEKDAY_NAMES_BY_INDEX[row.weekday]}</span>
                 <Input
                   type="time"
-                  aria-label={`Початок — ${weekdays[row.weekday]}`}
+                  aria-label={`Початок — ${WEEKDAY_NAMES_BY_INDEX[row.weekday]}`}
                   value={row.startTime}
                   disabled={!row.isWorkingDay}
                   onChange={(event) => setHours((items) => items.map((item) => (item.id === row.id ? { ...item, startTime: event.target.value } : item)))}
                 />
                 <Input
                   type="time"
-                  aria-label={`Кінець — ${weekdays[row.weekday]}`}
+                  aria-label={`Кінець — ${WEEKDAY_NAMES_BY_INDEX[row.weekday]}`}
                   value={row.endTime}
                   disabled={!row.isWorkingDay}
                   onChange={(event) => setHours((items) => items.map((item) => (item.id === row.id ? { ...item, endTime: event.target.value } : item)))}
@@ -133,10 +156,16 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
           <CardTitle>Заблокувати час</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createBlock} className="grid gap-4">
+          <form onSubmit={createBlock} className="grid gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="block-date">Дата</Label>
-              <Input id="block-date" className="h-11" type="date" name="date" required />
+              <DateCalendarPopover
+                value={blockDate}
+                onChange={setBlockDate}
+                minDate={minimumBlockDate}
+                label="Дата блокування"
+              />
+              <input id="block-date" type="hidden" name="date" value={blockDate} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
@@ -152,8 +181,8 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
               <Label htmlFor="block-reason">Причина (необов’язково)</Label>
               <Input id="block-reason" className="h-11" name="reason" />
             </div>
-            <Button type="submit" className="h-11 w-full">
-              <Plus className="size-4" /> Додати блокування
+            <Button type="submit" className="h-11 w-full" disabled={creatingBlock || !blockDate}>
+              <Plus className="size-4" /> {creatingBlock ? "Додавання..." : "Додати блокування"}
             </Button>
           </form>
           <Separator className="my-6" />
@@ -163,7 +192,12 @@ export function ScheduleEditor({ workingHours, scheduleBlocks }: { workingHours:
               scheduleBlocks.map((block) => (
                 <div key={block.id} className="flex items-start justify-between gap-2">
                   <div className="border-l-2 border-studio-accent pl-3 text-sm">
-                    <strong className="block">{block.startAt.toLocaleString("uk-UA", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Kyiv" })}</strong>
+                    <strong className="block">
+                      {block.startAt.toLocaleDateString("uk-UA", { dateStyle: "medium", timeZone: BUSINESS_TIME_ZONE })}
+                    </strong>
+                    <span className="block text-studio-muted">
+                      {formatInTimeZone(block.startAt, BUSINESS_TIME_ZONE, "HH:mm")} - {formatInTimeZone(block.endAt, BUSINESS_TIME_ZONE, "HH:mm")}
+                    </span>
                     <span className="text-studio-muted">{block.reason ?? "Без причини"}</span>
                   </div>
                   <Button
